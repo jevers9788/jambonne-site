@@ -1,0 +1,16 @@
+[package]
+name = "jambonne-site"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+askama = { version = "0.12", features = ["with-axum"] }
+askama_axum = "0.4"
+tokio = { version = "1", features = ["full"] }
+pulldown-cmark = "0.10"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs"] }
+hyper = { version = "0.14", features = ["server"] }
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["full"] }
