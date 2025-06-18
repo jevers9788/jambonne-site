@@ -4,5 +4,9 @@
 
 {% block content %}
 <h1>Blog</h1>
-<p>Blog posts coming soon.</p>
+<ul>
+  {% for post in posts %}
+    <li><a href="/blog/{{ post.slug }}">{{ post.title }}</a></li>
+  {% endfor %}
+</ul>
 {% endblock %} 
