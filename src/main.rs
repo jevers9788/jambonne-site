@@ -23,12 +23,6 @@ struct BlogTemplate {
 #[template(path = "cv.html")]
 struct CvTemplate;
 
-// mod filters {
-// pub fn safe(s: &str) -> ::askama::Result<String> {
-// Ok(s.to_owned())
-// }
-// }
-
 #[derive(Template)]
 #[template(path = "article.html")]
 struct ArticleTemplate {
