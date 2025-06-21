@@ -1,15 +1,22 @@
+/* Gravity's Rainbow Blueprint Theme */
+
+html, body {
+    min-height: 100vh; /* Ensure the body covers the full viewport height */
+}
+
 body {
-    font-family: system-ui, sans-serif;
-    background: #f9f9fb;
-    color: #222;
+    font-family: 'EB Garamond', serif;
+    background: #1a183d; /* Deep blue from the cover */
+    color: #a0cfee; /* Light blue for blueprint lines/text */
     margin: 0;
     padding: 0;
+    font-size: 18px;
 }
 
 header {
-    background: #fff;
-    border-bottom: 1px solid #eee;
-    padding: 1rem 0;
+    background: transparent;
+    border-bottom: 2px solid #5a678e; /* A slightly brighter blue for separation */
+    padding: 1.5rem 0;
     margin-bottom: 2rem;
 }
 
@@ -17,38 +24,82 @@ nav {
     max-width: 800px;
     margin: 0 auto;
     display: flex;
-    gap: 1.5rem;
+    gap: 2rem;
     justify-content: center;
 }
 
 nav a {
-    color: #0077cc;
+    color: #e0f2ff; /* A very light, almost white-blue */
     text-decoration: none;
     font-weight: 500;
+    font-size: 1.2rem;
+    text-transform: uppercase;
 }
 
 nav a:hover {
+    color: #fff;
     text-decoration: underline;
 }
 
+/* White content box like the title block on the cover */
 main {
     max-width: 800px;
     margin: 0 auto;
-    background: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    background: #ffffff !important; /* Force white background */
+    color: #000000 !important; /* Force black text */
+    padding: 2.5rem;
+    border: 2px solid #000000;
+    box-shadow: 16px 16px 0px #a0cfee; /* Blueprint-colored drop shadow */
+    color-scheme: light; /* Prevent browser dark-mode inversion */
+    text-align: center; /* Center all text content */
 }
 
 footer {
     text-align: center;
-    color: #888;
-    font-size: 0.9rem;
-    margin: 2rem 0 1rem 0;
+    color: #5a678e; /* Muted blue for the footer */
+    font-size: 1rem;
+    margin: 3rem 0 1rem 0;
+}
+
+h1, h2, h3 {
+    font-family: 'EB Garamond', serif;
+    color: #000000; /* Black headings inside the white box */
 }
 
 h1 {
-    color: #0077cc;
-    font-size: 2.2rem;
+    font-size: 2.0rem;
     margin-top: 0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+    position: relative; /* For the custom border */
+}
+
+h1::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 400px; /* Adjust this value to make the line shorter or longer */
+    height: 1px;
+    background-color: #050505;
+}
+
+h2 {
+    font-size: 2.8rem; /* Reduced from 2.8rem */
+    margin-top: 0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    font-style: italic;
+}
+
+/* Styling for links inside the main content */
+main a {
+    color: #1a183d;
+    text-decoration: underline;
+}
+
+main a:hover {
+    color: #0056b3;
 } 

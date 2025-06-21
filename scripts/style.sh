@@ -12,4 +12,4 @@ echo "🔍 Linting with Clippy..."
 # We use -D warnings to treat all warnings as errors.
 cargo clippy -- -D warnings
 
-echo "✅ All checks passed!" 
+echo -e "\033[32mAll checks passed!\033[0m"
