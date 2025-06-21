@@ -1,5 +1,0 @@
-[phases.setup]
-nixPkgs = ["rustc", "cargo", "gcc"]
-
-[start]
-cmd = "cargo run --release" 
