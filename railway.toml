@@ -1,5 +1,5 @@
 [build]
-builder = "nixpacks"
+builder = "rust"
 
 [deploy]
 startCommand = "cargo run --release"
