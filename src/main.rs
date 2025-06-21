@@ -41,32 +41,51 @@ async fn landing() -> impl axum::response::IntoResponse {
 
 async fn blog() -> impl axum::response::IntoResponse {
     let mut posts = Vec::new();
-    if let Ok(entries) = fs::read_dir("posts") {
-        for entry in entries.flatten() {
-            if let Some(ext) = entry.path().extension() {
-                if ext == "md" {
-                    let filename = entry.file_name().to_string_lossy().to_string();
-                    let slug = filename.trim_end_matches(".md").to_string();
-                    let content = fs::read_to_string(entry.path()).unwrap_or_default();
-                    let title = content
-                        .lines()
-                        .next()
-                        .unwrap_or("Untitled")
-                        .trim_start_matches('#')
-                        .trim()
-                        .to_string();
-                    posts.push(BlogPostMeta { slug, title });
+    
+    // Try different possible locations for the posts directory
+    let posts_dirs = ["posts", "/app/posts"];
+    
+    for posts_dir in posts_dirs {
+        if let Ok(entries) = fs::read_dir(posts_dir) {
+            for entry in entries.flatten() {
+                if let Some(ext) = entry.path().extension() {
+                    if ext == "md" {
+                        let filename = entry.file_name().to_string_lossy().to_string();
+                        let slug = filename.trim_end_matches(".md").to_string();
+                        let content = fs::read_to_string(entry.path()).unwrap_or_default();
+                        let title = content
+                            .lines()
+                            .next()
+                            .unwrap_or("Untitled")
+                            .trim_start_matches('#')
+                            .trim()
+                            .to_string();
+                        posts.push(BlogPostMeta { slug, title });
+                    }
                 }
             }
+            break; // Found posts directory, stop looking
         }
     }
+    
     posts.sort_by(|a, b| b.slug.cmp(&a.slug));
     BlogTemplate { posts }
 }
 
 async fn blog_post(Path(slug): Path<String>) -> Response {
-    let path = format!("posts/{}.md", slug);
-    if !FsPath::new(&path).exists() {
+    // Try different possible locations for the posts directory
+    let posts_dirs = ["posts", "/app/posts"];
+    let mut path = String::new();
+    
+    for posts_dir in posts_dirs {
+        let test_path = format!("{}/{}.md", posts_dir, slug);
+        if FsPath::new(&test_path).exists() {
+            path = test_path;
+            break;
+        }
+    }
+    
+    if path.is_empty() {
         return axum::http::StatusCode::NOT_FOUND.into_response();
     }
 
@@ -96,12 +115,23 @@ async fn cv() -> impl axum::response::IntoResponse {
 
 #[tokio::main]
 async fn main() {
+    // Try to find the static directory in various possible locations
+    let static_path = if FsPath::new("static").exists() {
+        "static"
+    } else if FsPath::new("/app/static").exists() {
+        "/app/static"
+    } else {
+        "static" // fallback
+    };
+    
+    println!("Using static path: {}", static_path);
+
     let app = Router::new()
         .route("/", get(landing))
         .route("/blog", get(blog))
         .route("/blog/:slug", get(blog_post))
         .route("/cv", get(cv))
-        .nest_service("/static", ServeDir::new("static"));
+        .nest_service("/static", ServeDir::new(static_path));
 
     // Use environment variables for deployment flexibility
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
