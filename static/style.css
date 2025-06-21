@@ -102,4 +102,95 @@ main a {
 
 main a:hover {
     color: #0056b3;
+}
+
+/* CV-specific styling */
+.cv {
+    text-align: left;
+    max-width: 100%;
+}
+
+.cv-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #1a183d;
+}
+
+.cv-header h1 {
+    font-size: 2.5rem;
+    margin: 0 0 0.5rem 0;
+    color: #1a183d;
+    font-weight: 700;
+}
+
+.contact-info {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.cv-section {
+    margin-bottom: 2rem;
+}
+
+.cv-section h2 {
+    font-size: 1.8rem;
+    color: #1a183d;
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #ddd;
+    font-weight: 600;
+    font-style: normal;
+}
+
+.job, .education {
+    margin-bottom: 1.5rem;
+    padding-left: 0;
+}
+
+.job h3, .education h3 {
+    font-size: 1.3rem;
+    color: #1a183d;
+    margin: 0 0 0.25rem 0;
+    font-weight: 600;
+}
+
+.company, .degree {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 0 0 0.25rem 0;
+    font-weight: 500;
+}
+
+.dates {
+    font-size: 0.95rem;
+    color: #888;
+    margin: 0 0 0.75rem 0;
+    font-style: italic;
+}
+
+.details {
+    font-size: 0.95rem;
+    color: #666;
+    margin: 0 0 0.25rem 0;
+}
+
+.job ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+}
+
+.job li {
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    color: #333;
+}
+
+.skills {
+    font-size: 1rem;
+    color: #333;
+    line-height: 1.6;
+    margin: 0;
 } 

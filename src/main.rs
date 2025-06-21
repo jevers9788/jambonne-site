@@ -103,7 +103,12 @@ async fn main() {
         .route("/cv", get(cv))
         .nest_service("/static", ServeDir::new("static"));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // Use environment variables for deployment flexibility
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let port: u16 = port.parse().unwrap_or(3000);
+    
+    // For deployment, bind to all interfaces
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Listening on http://{}", addr);
 
     let listener = TcpListener::bind(addr).await.unwrap();
