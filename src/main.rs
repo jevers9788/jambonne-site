@@ -118,8 +118,6 @@ async fn cv() -> impl axum::response::IntoResponse {
 
 // Custom static file handler that serves from embedded files
 async fn static_handler(Path(path): Path<String>) -> Response {
-    println!("Static file request: {}", path);
-    
     if let Some(file) = STATIC_DIR.get_file(&path) {
         let content_type = match path.split('.').next_back() {
             Some("css") => "text/css",
@@ -132,13 +130,9 @@ async fn static_handler(Path(path): Path<String>) -> Response {
             Some("ttf") => "font/ttf",
             _ => "text/plain",
         };
-        
-        println!("Serving static file: {} (type: {})", path, content_type);
         let headers = [("content-type", content_type)];
         return (headers, file.contents()).into_response();
     }
-    
-    println!("Static file not found: {}", path);
     axum::http::StatusCode::NOT_FOUND.into_response()
 }
 
@@ -146,12 +140,6 @@ async fn static_handler(Path(path): Path<String>) -> Response {
 async fn main() {
     println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
-    
-    // Debug: Print all embedded static files
-    println!("Available embedded files:");
-    for file in STATIC_DIR.files() {
-        println!("  - {}", file.path().display());
-    }
 
     let app = Router::new()
         .route("/", get(landing))
