@@ -106,7 +106,7 @@ async fn main() {
     // Use environment variables for deployment flexibility
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let port: u16 = port.parse().unwrap_or(3000);
-    
+
     // For deployment, bind to all interfaces
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Listening on http://{}", addr);
