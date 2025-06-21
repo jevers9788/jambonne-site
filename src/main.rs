@@ -119,7 +119,8 @@ async fn cv() -> impl axum::response::IntoResponse {
 // Custom static file handler that serves from embedded files
 async fn static_handler(Path(path): Path<String>) -> Response {
     let file_path = format!("static/{}", path);
-
+    println!("Static file request: {} -> {}", path, file_path);
+    
     if let Some(file) = STATIC_DIR.get_file(&file_path) {
         let content_type = match path.split('.').next_back() {
             Some("css") => "text/css",
@@ -132,16 +133,19 @@ async fn static_handler(Path(path): Path<String>) -> Response {
             Some("ttf") => "font/ttf",
             _ => "text/plain",
         };
-
+        
+        println!("Serving static file: {} (type: {})", file_path, content_type);
         let headers = [("content-type", content_type)];
         return (headers, file.contents()).into_response();
     }
-
+    
+    println!("Static file not found: {}", file_path);
     axum::http::StatusCode::NOT_FOUND.into_response()
 }
 
 #[tokio::main]
 async fn main() {
+    println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
 
     let app = Router::new()
@@ -154,11 +158,26 @@ async fn main() {
     // Use environment variables for deployment flexibility
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let port: u16 = port.parse().unwrap_or(3000);
+    println!("Using port: {}", port);
 
     // For deployment, bind to all interfaces
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    println!("Listening on http://{}", addr);
+    println!("Attempting to bind to: {}", addr);
 
-    let listener = TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = match TcpListener::bind(addr).await {
+        Ok(listener) => {
+            println!("Successfully bound to {}", addr);
+            listener
+        }
+        Err(e) => {
+            eprintln!("Failed to bind to {}: {}", addr, e);
+            std::process::exit(1);
+        }
+    };
+
+    println!("Starting server...");
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("Server error: {}", e);
+        std::process::exit(1);
+    }
 }
