@@ -1,5 +1,5 @@
 # ---- Build Stage ----
-FROM rust:1.75 as builder
+FROM rust:1.76 as builder
 
 WORKDIR /app
 
