@@ -5,6 +5,8 @@
 build:
     cargo build
 
+style:
+    ./scripts/style.sh
 # Build in release mode
 release:
     cargo build --release
