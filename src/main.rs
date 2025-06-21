@@ -8,6 +8,11 @@ use std::net::SocketAddr;
 use std::path::Path as FsPath;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
+use include_dir::{include_dir, Dir};
+use std::env;
+
+// Embed static files directly into the binary
+static STATIC_DIR: Dir<'_> = include_dir!("static");
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -113,25 +118,40 @@ async fn cv() -> impl axum::response::IntoResponse {
     CvTemplate
 }
 
+// Custom static file handler that serves from embedded files
+async fn static_handler(Path(path): Path<String>) -> Response {
+    let file_path = format!("static/{}", path);
+    
+    if let Some(file) = STATIC_DIR.get_file(&file_path) {
+        let content_type = match path.split('.').last() {
+            Some("css") => "text/css",
+            Some("js") => "application/javascript",
+            Some("png") => "image/png",
+            Some("jpg") | Some("jpeg") => "image/jpeg",
+            Some("svg") => "image/svg+xml",
+            Some("woff") => "font/woff",
+            Some("woff2") => "font/woff2",
+            Some("ttf") => "font/ttf",
+            _ => "text/plain",
+        };
+        
+        let headers = [("content-type", content_type)];
+        return (headers, file.contents()).into_response();
+    }
+    
+    axum::http::StatusCode::NOT_FOUND.into_response()
+}
+
 #[tokio::main]
 async fn main() {
-    // Try to find the static directory in various possible locations
-    let static_path = if FsPath::new("static").exists() {
-        "static"
-    } else if FsPath::new("/app/static").exists() {
-        "/app/static"
-    } else {
-        "static" // fallback
-    };
-    
-    println!("Using static path: {}", static_path);
+    println!("Static files embedded in binary");
 
     let app = Router::new()
         .route("/", get(landing))
         .route("/blog", get(blog))
         .route("/blog/:slug", get(blog_post))
         .route("/cv", get(cv))
-        .nest_service("/static", ServeDir::new(static_path));
+        .route("/static/*path", get(static_handler));
 
     // Use environment variables for deployment flexibility
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());

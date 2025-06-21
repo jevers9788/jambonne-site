@@ -1,42 +1,34 @@
+# ---- Build Stage ----
 FROM rust:1.75 as builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy manifests
-COPY Cargo.lock Cargo.toml ./
+# Copy manifests first for caching
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src
+RUN echo "fn main() {}" > src/main.rs
+RUN cargo build --release || true
 
-# Create a dummy main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-
-# Build dependencies
-RUN cargo build --release
-
-# Remove the dummy main.rs and copy the real source code
-RUN rm src/main.rs
+# Now copy the rest of the source
 COPY . .
-
-# Build the application
 RUN cargo build --release
 
-# Create a new stage with a minimal image
+# ---- Runtime Stage ----
 FROM debian:bookworm-slim
 
-# Install ca-certificates for HTTPS requests
+WORKDIR /app
+
+# Install CA certificates for HTTPS
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy the binary from builder stage
-COPY --from=builder /usr/src/app/target/release/jambonne-site /usr/local/bin/jambonne-site
+# Copy the binary
+COPY --from=builder /app/target/release/jambonne-site /app/bin/jambonne-site
 
-# Copy static files and templates
-COPY --from=builder /usr/src/app/static /usr/local/bin/static
-COPY --from=builder /usr/src/app/templates /usr/local/bin/templates
-COPY --from=builder /usr/src/app/posts /usr/local/bin/posts
+# Copy static assets, posts, and templates
+COPY --from=builder /app/static /app/static
+COPY --from=builder /app/posts /app/posts
+COPY --from=builder /app/templates /app/templates
 
-# Set the working directory
-WORKDIR /usr/local/bin
-
-# Expose port 8080 (Railway's default)
 EXPOSE 8080
 
-# Run the binary
-CMD ["jambonne-site"] 
+CMD ["/app/bin/jambonne-site"] 
