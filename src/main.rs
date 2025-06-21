@@ -2,14 +2,12 @@ use askama::Template;
 use askama_axum::IntoResponse;
 use axum::response::Response;
 use axum::{extract::Path, routing::get, Router};
+use include_dir::{include_dir, Dir};
 use pulldown_cmark::{html, Options, Parser};
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
 use tokio::net::TcpListener;
-use tower_http::services::ServeDir;
-use include_dir::{include_dir, Dir};
-use std::env;
 
 // Embed static files directly into the binary
 static STATIC_DIR: Dir<'_> = include_dir!("static");
@@ -46,10 +44,10 @@ async fn landing() -> impl axum::response::IntoResponse {
 
 async fn blog() -> impl axum::response::IntoResponse {
     let mut posts = Vec::new();
-    
+
     // Try different possible locations for the posts directory
     let posts_dirs = ["posts", "/app/posts"];
-    
+
     for posts_dir in posts_dirs {
         if let Ok(entries) = fs::read_dir(posts_dir) {
             for entry in entries.flatten() {
@@ -72,7 +70,7 @@ async fn blog() -> impl axum::response::IntoResponse {
             break; // Found posts directory, stop looking
         }
     }
-    
+
     posts.sort_by(|a, b| b.slug.cmp(&a.slug));
     BlogTemplate { posts }
 }
@@ -81,7 +79,7 @@ async fn blog_post(Path(slug): Path<String>) -> Response {
     // Try different possible locations for the posts directory
     let posts_dirs = ["posts", "/app/posts"];
     let mut path = String::new();
-    
+
     for posts_dir in posts_dirs {
         let test_path = format!("{}/{}.md", posts_dir, slug);
         if FsPath::new(&test_path).exists() {
@@ -89,7 +87,7 @@ async fn blog_post(Path(slug): Path<String>) -> Response {
             break;
         }
     }
-    
+
     if path.is_empty() {
         return axum::http::StatusCode::NOT_FOUND.into_response();
     }
@@ -121,9 +119,9 @@ async fn cv() -> impl axum::response::IntoResponse {
 // Custom static file handler that serves from embedded files
 async fn static_handler(Path(path): Path<String>) -> Response {
     let file_path = format!("static/{}", path);
-    
+
     if let Some(file) = STATIC_DIR.get_file(&file_path) {
-        let content_type = match path.split('.').last() {
+        let content_type = match path.split('.').next_back() {
             Some("css") => "text/css",
             Some("js") => "application/javascript",
             Some("png") => "image/png",
@@ -134,11 +132,11 @@ async fn static_handler(Path(path): Path<String>) -> Response {
             Some("ttf") => "font/ttf",
             _ => "text/plain",
         };
-        
+
         let headers = [("content-type", content_type)];
         return (headers, file.contents()).into_response();
     }
-    
+
     axum::http::StatusCode::NOT_FOUND.into_response()
 }
 
