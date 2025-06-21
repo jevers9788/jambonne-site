@@ -1,11 +1,5 @@
 [phases.setup]
-nixPkgs = ["rustc", "cargo", "pkg-config"]
-
-[phases.install]
-cmds = ["cargo build --release"]
-
-[phases.build]
-cmds = ["cargo build --release"]
+nixPkgs = ["rustc", "cargo"]
 
 [start]
-cmd = "./target/release/jambonne-site" 
+cmd = "cargo run --release" 
