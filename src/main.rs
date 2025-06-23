@@ -236,6 +236,7 @@ async fn static_handler(Path(path): Path<String>) -> Response {
 
 #[tokio::main]
 async fn main() {
+    println!("Reached main!");
     println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
 
