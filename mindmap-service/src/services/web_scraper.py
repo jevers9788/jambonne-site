@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 import time
 import re
 from typing import List, Optional, Dict, Any
-from urllib.parse import urlparse
 from ..models import ReadingListEntry, ScrapingOptions
 
 
@@ -89,7 +88,7 @@ class WebScraper:
             else:
                 entry.content = ""
                 entry.content_length = 0
-                print(f"  ✗ Failed to extract content")
+                print("  ✗ Failed to extract content")
             
             scraped_entries.append(entry)
             

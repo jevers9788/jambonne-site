@@ -1,11 +1,10 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import List, Optional
 import uuid
 from datetime import datetime
 
 from ..models import (
     ReadingListResponse, ScrapingRequest, EmbeddingRequest, MindMapRequest,
-    MindMapResponse, ErrorResponse, ScrapingOptions, EmbeddingOptions, MindMapOptions
+    MindMapResponse, ScrapingOptions, EmbeddingOptions, MindMapOptions
 )
 from ..services.safari_reader import SafariReader
 from ..services.web_scraper import WebScraper

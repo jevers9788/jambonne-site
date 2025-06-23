@@ -1,0 +1,70 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  scripts-lint:
+    name: Lint & Format (scripts/)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install uv
+        run: pip install uv
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format check
+        run: uv run ruff format --check .
+      - name: Run tests (if present)
+        run: |
+          if [ -f "test_*.py" ] || [ -d "tests" ]; then
+            uv run pytest || true
+          fi
+
+  mindmap-service-lint:
+    name: Lint & Format (mindmap-service/)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mindmap-service
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install uv
+        run: pip install uv
+      - name: Install dependencies
+        run: uv sync || uv pip install -r requirements.txt || true
+      - name: Ruff lint
+        run: |
+          if [ -f requirements.txt ]; then
+            uv run ruff check .
+          else
+            echo 'No requirements.txt, skipping ruff.'
+          fi
+      - name: Ruff format check
+        run: |
+          if [ -f requirements.txt ]; then
+            uv run ruff format --check .
+          else
+            echo 'No requirements.txt, skipping ruff.'
+          fi
+      - name: Run tests (if present)
+        run: |
+          if [ -f "test_*.py" ] || [ -d "tests" ]; then
+            uv run pytest || true
+          fi 

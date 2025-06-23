@@ -46,4 +46,9 @@ rebuild: clean build
 
 # Show available commands
 default:
-    @just --list 
+    @just --list
+
+lint-all:
+    just lint
+    cd scripts && uv pip install ruff && uv run ruff check .
+    cd mindmap-service && uv pip install ruff && uv run ruff check . 

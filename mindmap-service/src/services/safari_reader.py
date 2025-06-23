@@ -1,6 +1,6 @@
 import plistlib
 import os
-from typing import List, Optional
+from typing import List 
 from datetime import datetime
 from ..models import ReadingListEntry
 
