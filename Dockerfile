@@ -3,13 +3,7 @@ FROM rust:latest as builder
 
 WORKDIR /app
 
-# Copy manifests first for caching
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src
-RUN echo "fn main() {}" > src/main.rs
-RUN cargo build --release || true
-
-# Now copy the rest of the source
+# Copy the entire source and build
 COPY . .
 RUN cargo build --release
 
@@ -28,6 +22,8 @@ COPY --from=builder /app/target/release/jambonne-site /app/bin/jambonne-site
 COPY --from=builder /app/static /app/static
 COPY --from=builder /app/posts /app/posts
 COPY --from=builder /app/templates /app/templates
+
+ENV PORT=8080
 
 EXPOSE 8080
 
