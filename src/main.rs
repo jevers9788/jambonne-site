@@ -4,10 +4,25 @@ use axum::response::Response;
 use axum::{extract::Path, routing::get, Router};
 use include_dir::{include_dir, Dir};
 use pulldown_cmark::{html, Options, Parser};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
 use tokio::net::TcpListener;
+
+pub mod filters {
+    use askama::Result as AskamaResult;
+    use serde::Serialize;
+    pub fn join_keywords(keywords: &[String], sep: &str) -> AskamaResult<String> {
+        Ok(keywords.join(sep))
+    }
+    pub fn tojson<T: Serialize>(value: &T) -> AskamaResult<String> {
+        serde_json::to_string(value)
+            .map_err(|_| askama::Error::Custom("JSON serialization failed".into()))
+    }
+}
+
+pub use crate::filters::*;
 
 // Embed static files directly into the binary
 static STATIC_DIR: Dir<'_> = include_dir!("static");
@@ -31,6 +46,57 @@ struct CvTemplate;
 struct ArticleTemplate {
     title: String,
     content: String,
+}
+
+// Mind map data structures
+#[derive(Deserialize, Serialize, Debug)]
+struct MindMapNode {
+    id: String,
+    title: String,
+    url: String,
+    cluster: i32,
+    position: Position,
+    keywords: Vec<String>,
+    content_preview: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct Position {
+    x: f64,
+    y: f64,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct MindMapEdge {
+    source: String,
+    target: String,
+    weight: f64,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct MindMapCluster {
+    id: i32,
+    name: String,
+    keywords: Vec<String>,
+    articles: Vec<i32>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct MindMapData {
+    id: String,
+    nodes: Vec<MindMapNode>,
+    edges: Vec<MindMapEdge>,
+    clusters: Vec<MindMapCluster>,
+    metadata: serde_json::Value,
+    created_at: String,
+}
+
+// Mind map template
+#[derive(Template)]
+#[template(path = "mindmap.html", escape = "none")]
+struct MindMapTemplate {
+    mindmap: Option<MindMapData>,
+    error: Option<String>,
 }
 
 struct BlogPostMeta {
@@ -116,6 +182,38 @@ async fn cv() -> impl axum::response::IntoResponse {
     CvTemplate
 }
 
+// Mind map handler
+async fn mindmap() -> impl IntoResponse {
+    let mindmap_service_url = std::env::var("MINDMAP_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:8000".to_string());
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/api/mindmap/latest", mindmap_service_url))
+        .send()
+        .await;
+
+    match response {
+        Ok(resp) => match resp.json::<MindMapData>().await {
+            Ok(mindmap_data) => MindMapTemplate {
+                mindmap: Some(mindmap_data),
+                error: None,
+            }
+            .into_response(),
+            Err(e) => MindMapTemplate {
+                mindmap: None,
+                error: Some(format!("Failed to parse mind map data: {}", e)),
+            }
+            .into_response(),
+        },
+        Err(e) => MindMapTemplate {
+            mindmap: None,
+            error: Some(format!("Failed to fetch mind map: {}", e)),
+        }
+        .into_response(),
+    }
+}
+
 // Custom static file handler that serves from embedded files
 async fn static_handler(Path(path): Path<String>) -> Response {
     if let Some(file) = STATIC_DIR.get_file(&path) {
@@ -146,6 +244,7 @@ async fn main() {
         .route("/blog", get(blog))
         .route("/blog/:slug", get(blog_post))
         .route("/cv", get(cv))
+        .route("/mindmap", get(mindmap)) // Add mind map route
         .route("/static/*path", get(static_handler));
 
     // Use environment variables for deployment flexibility

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{% endblock %}
+
+{% block content %}
+<div class="mindmap-container">
+    <h1> Reading </h1>
+    
+    {% if error.is_some() %}
+    <div class="error-message">
+        <p>Error: {{ error.as_ref().unwrap() }}</p>
+        <p>Make sure the mind map service is running and accessible.</p>
+    </div>
+    {% else if mindmap.is_some() %}
+    <div class="mindmap-info">
+        <p>Generated on: {{ mindmap.as_ref().unwrap().created_at }}</p>
+    </div>
+    <div class="mindmap-articles">
+        <h3>Articles</h3>
+        <ul>
+            {% for node in mindmap.as_ref().unwrap().nodes %}
+            <li>
+                <strong>{{ node.title }}</strong><br>
+                <a href="{{ node.url }}" target="_blank">{{ node.url }}</a><br>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="no-data">
+        <p>No mind map data available.</p>
+        <p>Try running the mind map service first.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

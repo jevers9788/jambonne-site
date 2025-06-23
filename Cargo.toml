@@ -11,11 +11,13 @@ askama_axum = "0.4"
 pulldown-cmark = "0.10"
 tower-http = { version = "0.5", features = ["fs"] }
 include_dir = "0.7"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Database dependencies (uncomment when needed)
 # sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres"] }
-# serde = { version = "1.0", features = ["derive"] }
-# serde_json = "1.0"
+# redis = { version = "0.23", features = ["tokio-comp"] }
 
 # Additional microservice dependencies (uncomment when needed)
 # redis = { version = "0.23", features = ["tokio-comp"] }
