@@ -9,6 +9,8 @@ use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
 use tokio::net::TcpListener;
+use tracing::{info, error, debug, Level};
+use tracing_subscriber;
 
 pub mod filters {
     use askama::Result as AskamaResult;
@@ -236,40 +238,68 @@ async fn static_handler(Path(path): Path<String>) -> Response {
 
 #[tokio::main]
 async fn main() {
-    println!("Starting jambonne-site...");
-    println!("Static files embedded in binary");
+    // Initialize tracing subscriber for logging
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .init();
+
+    info!("Starting jambonne-site...");
+    info!("Static files embedded in binary");
+
+    // Log environment variables
+    for (key, value) in std::env::vars() {
+        debug!("env: {}={}", key, value);
+    }
 
     let app = Router::new()
-        .route("/", get(landing))
-        .route("/blog", get(blog))
-        .route("/blog/:slug", get(blog_post))
-        .route("/cv", get(cv))
-        .route("/mindmap", get(mindmap)) // Add mind map route
-        .route("/static/*path", get(static_handler));
+        .route("/", get(|| async {
+            info!("Handling landing page request");
+            landing().await
+        }))
+        .route("/blog", get(|| async {
+            info!("Handling blog page request");
+            blog().await
+        }))
+        .route("/blog/:slug", get(|path| async move {
+            info!("Handling blog post request: {:?}", path);
+            blog_post(path).await
+        }))
+        .route("/cv", get(|| async {
+            info!("Handling CV page request");
+            cv().await
+        }))
+        .route("/mindmap", get(|| async {
+            info!("Handling mindmap page request");
+            mindmap().await
+        }))
+        .route("/static/*path", get(|path| async move {
+            info!("Handling static file request: {:?}", path);
+            static_handler(path).await
+        }));
 
     // Use environment variables for deployment flexibility
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let port: u16 = port.parse().unwrap_or(3000);
-    println!("Using port: {}", port);
+    info!("Using port: {}", port);
 
     // For deployment, bind to all interfaces
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    println!("Attempting to bind to: {}", addr);
+    info!("Attempting to bind to: {}", addr);
 
     let listener = match TcpListener::bind(addr).await {
         Ok(listener) => {
-            println!("Successfully bound to {}", addr);
+            info!("Successfully bound to {}", addr);
             listener
         }
         Err(e) => {
-            eprintln!("Failed to bind to {}: {}", addr, e);
+            error!("Failed to bind to {}: {}", addr, e);
             std::process::exit(1);
         }
     };
 
-    println!("Starting server...");
+    info!("Starting server...");
     if let Err(e) = axum::serve(listener, app).await {
-        eprintln!("Server error: {}", e);
+        error!("Server error: {}", e);
         std::process::exit(1);
     }
 }
