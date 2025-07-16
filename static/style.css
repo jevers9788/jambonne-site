@@ -193,4 +193,34 @@ main a:hover {
     color: #333;
     line-height: 1.6;
     margin: 0;
+}
+
+/* Reading list styling */
+.reading-articles ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.reading-articles li {
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.reading-articles li:last-child {
+    border-bottom: none;
+}
+
+.reading-articles strong {
+    display: inline;
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.reading-articles a {
+    color: #1a183d;
+    text-decoration: underline;
+    word-break: break-all;
 } 

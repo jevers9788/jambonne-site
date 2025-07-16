@@ -82,7 +82,7 @@ struct MindMapCluster {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-struct MindMapData {
+struct ReadingData{
     id: String,
     nodes: Vec<MindMapNode>,
     edges: Vec<MindMapEdge>,
@@ -93,9 +93,9 @@ struct MindMapData {
 
 // Mind map template
 #[derive(Template)]
-#[template(path = "mindmap.html", escape = "none")]
-struct MindMapTemplate {
-    mindmap: Option<MindMapData>,
+#[template(path = "reading.html", escape = "none")]
+struct ReadingTemplate {
+    reading: Option<ReadingData>,
     error: Option<String>,
 }
 
@@ -183,7 +183,7 @@ async fn cv() -> impl axum::response::IntoResponse {
 }
 
 // Mind map handler
-async fn mindmap() -> impl IntoResponse {
+async fn reading() -> impl IntoResponse {
     let mindmap_service_url = std::env::var("MINDMAP_SERVICE_URL")
         .unwrap_or_else(|_| "http://localhost:8000".to_string());
 
@@ -194,20 +194,20 @@ async fn mindmap() -> impl IntoResponse {
         .await;
 
     match response {
-        Ok(resp) => match resp.json::<MindMapData>().await {
-            Ok(mindmap_data) => MindMapTemplate {
-                mindmap: Some(mindmap_data),
+        Ok(resp) => match resp.json::<ReadingData>().await {
+            Ok(reading_data) => ReadingTemplate{
+                reading: Some(reading_data),
                 error: None,
             }
             .into_response(),
-            Err(e) => MindMapTemplate {
-                mindmap: None,
+            Err(e) => ReadingTemplate{
+                reading: None,
                 error: Some(format!("Failed to parse mind map data: {}", e)),
             }
             .into_response(),
         },
-        Err(e) => MindMapTemplate {
-            mindmap: None,
+        Err(e) => ReadingTemplate{
+            reading: None,
             error: Some(format!("Failed to fetch mind map: {}", e)),
         }
         .into_response(),
@@ -275,10 +275,10 @@ async fn main() {
             }),
         )
         .route(
-            "/mindmap",
+            "/reading",
             get(|| async {
-                println!("Handling mindmap page request");
-                mindmap().await
+                println!("Handling reading list page request");
+                reading().await
             }),
         )
         .route(

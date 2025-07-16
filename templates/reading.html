@@ -3,7 +3,7 @@
 {% block title %}{% endblock %}
 
 {% block content %}
-<div class="mindmap-container">
+<div class="reading-container">
     <h1> Reading </h1>
     
     {% if error.is_some() %}
@@ -11,17 +11,16 @@
         <p>Error: {{ error.as_ref().unwrap() }}</p>
         <p>Make sure the mind map service is running and accessible.</p>
     </div>
-    {% else if mindmap.is_some() %}
-    <div class="mindmap-info">
-        <p>Generated on: {{ mindmap.as_ref().unwrap().created_at }}</p>
+    {% else if reading.is_some() %}
+    <div class="reading-info">
+        <p>Generated on: {{ reading.as_ref().unwrap().created_at }}</p>
     </div>
-    <div class="mindmap-articles">
+    <div class="reading-articles">
         <h3>Articles</h3>
         <ul>
-            {% for node in mindmap.as_ref().unwrap().nodes %}
+            {% for node in reading.as_ref().unwrap().nodes %}
             <li>
-                <strong>{{ node.title }}</strong><br>
-                <a href="{{ node.url }}" target="_blank">{{ node.url }}</a><br>
+                <strong>{{ node.title }}</strong> <a href="{{ node.url }}" target="_blank">(link)</a><br>
             </li>
             {% endfor %}
         </ul>
