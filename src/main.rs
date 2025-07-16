@@ -4,6 +4,7 @@ use axum::response::Response;
 use axum::{extract::Path, routing::get, Router};
 use chrono::Utc;
 use include_dir::{include_dir, Dir};
+use once_cell::sync::Lazy;
 use pulldown_cmark::{html, Options, Parser};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,7 +12,6 @@ use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
 use tokio::net::TcpListener;
-use once_cell::sync::Lazy;
 
 pub mod filters {
     use askama::Result as AskamaResult;
@@ -263,7 +263,7 @@ async fn cv() -> impl axum::response::IntoResponse {
 // Reading list handler
 async fn reading() -> impl IntoResponse {
     let items = &*READING_LIST;
-    
+
     if items.is_empty() {
         return ReadingTemplate {
             reading: None,
