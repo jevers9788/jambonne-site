@@ -2,9 +2,11 @@ use askama::Template;
 use askama_axum::IntoResponse;
 use axum::response::Response;
 use axum::{extract::Path, routing::get, Router};
+use chrono::Utc;
 use include_dir::{include_dir, Dir};
 use pulldown_cmark::{html, Options, Parser};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
@@ -82,13 +84,83 @@ struct MindMapCluster {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-struct ReadingData{
+struct ReadingData {
     id: String,
     nodes: Vec<MindMapNode>,
     edges: Vec<MindMapEdge>,
     clusters: Vec<MindMapCluster>,
     metadata: serde_json::Value,
     created_at: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct ReadingListItem {
+    title: String,
+    url: String,
+    date_added: String,
+}
+
+// Global reading list data
+static mut READING_LIST: Option<Vec<ReadingListItem>> = None;
+
+fn read_safari_reading_list() -> Result<Vec<ReadingListItem>, Box<dyn std::error::Error>> {
+    let bookmarks_path = std::env::var("HOME").unwrap_or_else(|_| "~".to_string())
+        + "/Library/Safari/Bookmarks.plist";
+
+    if !FsPath::new(&bookmarks_path).exists() {
+        return Err("Safari Bookmarks.plist not found".into());
+    }
+
+    let plist_data: HashMap<String, plist::Value> = plist::from_file(&bookmarks_path)?;
+
+    // Find the Reading List section
+    let children = plist_data
+        .get("Children")
+        .and_then(|v| v.as_array())
+        .ok_or("No Children found in plist")?;
+
+    let mut reading_list = Vec::new();
+
+    for child in children {
+        if let Some(child_map) = child.as_dictionary() {
+            if child_map.get("Title").and_then(|v| v.as_string()) == Some("com.apple.ReadingList") {
+                if let Some(children) = child_map.get("Children").and_then(|v| v.as_array()) {
+                    for entry in children {
+                        if let Some(entry_map) = entry.as_dictionary() {
+                            let url = entry_map
+                                .get("URLString")
+                                .and_then(|v| v.as_string())
+                                .unwrap_or("No URL")
+                                .to_string();
+
+                            let title = entry_map
+                                .get("URIDictionary")
+                                .and_then(|v| v.as_dictionary())
+                                .and_then(|dict| dict.get("title"))
+                                .and_then(|v| v.as_string())
+                                .unwrap_or(&url)
+                                .to_string();
+
+                            let date_added = entry_map
+                                .get("DateAdded")
+                                .and_then(|v| v.as_date())
+                                .map(|date| format!("{:?}", date))
+                                .unwrap_or_else(|| Utc::now().to_rfc3339());
+
+                            reading_list.push(ReadingListItem {
+                                title,
+                                url,
+                                date_added,
+                            });
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    Ok(reading_list)
 }
 
 // Mind map template
@@ -182,35 +254,47 @@ async fn cv() -> impl axum::response::IntoResponse {
     CvTemplate
 }
 
-// Mind map handler
+// Reading list handler
 async fn reading() -> impl IntoResponse {
-    let mindmap_service_url = std::env::var("MINDMAP_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:8000".to_string());
+    unsafe {
+        match &READING_LIST {
+            Some(items) => {
+                // Convert ReadingListItem to MindMapNode for template compatibility
+                let nodes: Vec<MindMapNode> = items
+                    .iter()
+                    .enumerate()
+                    .map(|(i, item)| MindMapNode {
+                        id: i.to_string(),
+                        title: item.title.clone(),
+                        url: item.url.clone(),
+                        cluster: 0,
+                        position: Position { x: 0.0, y: 0.0 },
+                        keywords: vec![],
+                        content_preview: "".to_string(),
+                    })
+                    .collect();
 
-    let client = reqwest::Client::new();
-    let response = client
-        .get(format!("{}/api/mindmap/latest", mindmap_service_url))
-        .send()
-        .await;
+                let reading_data = ReadingData {
+                    id: "reading-list".to_string(),
+                    nodes,
+                    edges: vec![],
+                    clusters: vec![],
+                    metadata: serde_json::json!({}),
+                    created_at: Utc::now().to_rfc3339(),
+                };
 
-    match response {
-        Ok(resp) => match resp.json::<ReadingData>().await {
-            Ok(reading_data) => ReadingTemplate{
-                reading: Some(reading_data),
-                error: None,
+                ReadingTemplate {
+                    reading: Some(reading_data),
+                    error: None,
+                }
+                .into_response()
             }
-            .into_response(),
-            Err(e) => ReadingTemplate{
+            None => ReadingTemplate {
                 reading: None,
-                error: Some(format!("Failed to parse mind map data: {}", e)),
+                error: Some("Reading list not loaded".to_string()),
             }
             .into_response(),
-        },
-        Err(e) => ReadingTemplate{
-            reading: None,
-            error: Some(format!("Failed to fetch mind map: {}", e)),
         }
-        .into_response(),
     }
 }
 
@@ -239,6 +323,22 @@ async fn main() {
     println!("Reached main!");
     println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
+
+    // Load reading list on startup
+    println!("Loading Safari reading list...");
+    unsafe {
+        match read_safari_reading_list() {
+            Ok(items) => {
+                let count = items.len();
+                READING_LIST = Some(items);
+                println!("Loaded {} reading list items", count);
+            }
+            Err(e) => {
+                eprintln!("Failed to load reading list: {}", e);
+                READING_LIST = None;
+            }
+        }
+    }
 
     // Log environment variables
     for (key, value) in std::env::vars() {
