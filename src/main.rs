@@ -11,6 +11,7 @@ use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
 use tokio::net::TcpListener;
+use once_cell::sync::Lazy;
 
 pub mod filters {
     use askama::Result as AskamaResult;
@@ -100,8 +101,13 @@ struct ReadingListItem {
     date_added: String,
 }
 
-// Global reading list data
-static mut READING_LIST: Option<Vec<ReadingListItem>> = None;
+// Global reading list data - thread-safe lazy initialization
+static READING_LIST: Lazy<Vec<ReadingListItem>> = Lazy::new(|| {
+    read_safari_reading_list().unwrap_or_else(|e| {
+        eprintln!("Failed to load reading list: {}", e);
+        Vec::new()
+    })
+});
 
 fn read_safari_reading_list() -> Result<Vec<ReadingListItem>, Box<dyn std::error::Error>> {
     let bookmarks_path = std::env::var("HOME").unwrap_or_else(|_| "~".to_string())
@@ -256,46 +262,45 @@ async fn cv() -> impl axum::response::IntoResponse {
 
 // Reading list handler
 async fn reading() -> impl IntoResponse {
-    unsafe {
-        match &READING_LIST {
-            Some(items) => {
-                // Convert ReadingListItem to MindMapNode for template compatibility
-                let nodes: Vec<MindMapNode> = items
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| MindMapNode {
-                        id: i.to_string(),
-                        title: item.title.clone(),
-                        url: item.url.clone(),
-                        cluster: 0,
-                        position: Position { x: 0.0, y: 0.0 },
-                        keywords: vec![],
-                        content_preview: "".to_string(),
-                    })
-                    .collect();
-
-                let reading_data = ReadingData {
-                    id: "reading-list".to_string(),
-                    nodes,
-                    edges: vec![],
-                    clusters: vec![],
-                    metadata: serde_json::json!({}),
-                    created_at: Utc::now().to_rfc3339(),
-                };
-
-                ReadingTemplate {
-                    reading: Some(reading_data),
-                    error: None,
-                }
-                .into_response()
-            }
-            None => ReadingTemplate {
-                reading: None,
-                error: Some("Reading list not loaded".to_string()),
-            }
-            .into_response(),
+    let items = &*READING_LIST;
+    
+    if items.is_empty() {
+        return ReadingTemplate {
+            reading: None,
+            error: Some("No reading list items found".to_string()),
         }
+        .into_response();
     }
+
+    // Convert ReadingListItem to MindMapNode for template compatibility
+    let nodes: Vec<MindMapNode> = items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| MindMapNode {
+            id: i.to_string(),
+            title: item.title.clone(),
+            url: item.url.clone(),
+            cluster: 0,
+            position: Position { x: 0.0, y: 0.0 },
+            keywords: vec![],
+            content_preview: "".to_string(),
+        })
+        .collect();
+
+    let reading_data = ReadingData {
+        id: "reading-list".to_string(),
+        nodes,
+        edges: vec![],
+        clusters: vec![],
+        metadata: serde_json::json!({}),
+        created_at: Utc::now().to_rfc3339(),
+    };
+
+    ReadingTemplate {
+        reading: Some(reading_data),
+        error: None,
+    }
+    .into_response()
 }
 
 // Custom static file handler that serves from embedded files
@@ -323,22 +328,6 @@ async fn main() {
     println!("Reached main!");
     println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
-
-    // Load reading list on startup
-    println!("Loading Safari reading list...");
-    unsafe {
-        match read_safari_reading_list() {
-            Ok(items) => {
-                let count = items.len();
-                READING_LIST = Some(items);
-                println!("Loaded {} reading list items", count);
-            }
-            Err(e) => {
-                eprintln!("Failed to load reading list: {}", e);
-                READING_LIST = None;
-            }
-        }
-    }
 
     // Log environment variables
     for (key, value) in std::env::vars() {

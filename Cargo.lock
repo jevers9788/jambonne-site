@@ -773,6 +773,7 @@ dependencies = [
  "axum",
  "chrono",
  "include_dir",
+ "once_cell",
  "plist",
  "pulldown-cmark",
  "reqwest",
