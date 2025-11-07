@@ -71,7 +71,17 @@ cp env.example .env  # Edit as needed
 uv run uvicorn src.main:app --reload
 ```
 
-### 2. Rust Website
+### 2. Export Your Safari Reading List (optional but needed for reading page)
+```bash
+uv run python scripts/export_reading_list.py \
+  --output static/data/reading_list.json
+```
+- Requires Full Disk Access for your terminal the first time you read `Bookmarks.plist`.
+- Checks `~/Library/Safari/Bookmarks.plist`, extracts title/url/date, and writes JSON your site can embed or copy into a Docker image.
+- Override the destination with `--output` or set the `READING_LIST_FILE` env var for the Rust server.
+- When building Docker images, copy the exported JSON into the container so `/reading` works without macOS data access.
+
+### 3. Rust Website
 ```bash
 cargo run
 # Visit http://localhost:3000/mindmap

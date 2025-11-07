@@ -7,7 +7,6 @@ use include_dir::{include_dir, Dir};
 use once_cell::sync::Lazy;
 use pulldown_cmark::{html, Options, Parser};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path as FsPath;
@@ -41,8 +40,8 @@ struct BlogTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "cv.html")]
-struct CvTemplate;
+#[template(path = "about.html")]
+struct AboutTemplate;
 
 #[derive(Template)]
 #[template(path = "article.html")]
@@ -102,71 +101,21 @@ struct ReadingListItem {
 }
 
 // Global reading list data - thread-safe lazy initialization
+const DEFAULT_READING_LIST_FILE: &str = "static/data/reading_list.json";
+
 static READING_LIST: Lazy<Vec<ReadingListItem>> = Lazy::new(|| {
-    read_safari_reading_list().unwrap_or_else(|e| {
+    load_reading_list_from_file().unwrap_or_else(|e| {
         eprintln!("Failed to load reading list: {}", e);
         Vec::new()
     })
 });
 
-fn read_safari_reading_list() -> Result<Vec<ReadingListItem>, Box<dyn std::error::Error>> {
-    let bookmarks_path = std::env::var("HOME").unwrap_or_else(|_| "~".to_string())
-        + "/Library/Safari/Bookmarks.plist";
-
-    if !FsPath::new(&bookmarks_path).exists() {
-        return Err("Safari Bookmarks.plist not found".into());
-    }
-
-    let plist_data: HashMap<String, plist::Value> = plist::from_file(&bookmarks_path)?;
-
-    // Find the Reading List section
-    let children = plist_data
-        .get("Children")
-        .and_then(|v| v.as_array())
-        .ok_or("No Children found in plist")?;
-
-    let mut reading_list = Vec::new();
-
-    for child in children {
-        if let Some(child_map) = child.as_dictionary() {
-            if child_map.get("Title").and_then(|v| v.as_string()) == Some("com.apple.ReadingList") {
-                if let Some(children) = child_map.get("Children").and_then(|v| v.as_array()) {
-                    for entry in children {
-                        if let Some(entry_map) = entry.as_dictionary() {
-                            let url = entry_map
-                                .get("URLString")
-                                .and_then(|v| v.as_string())
-                                .unwrap_or("No URL")
-                                .to_string();
-
-                            let title = entry_map
-                                .get("URIDictionary")
-                                .and_then(|v| v.as_dictionary())
-                                .and_then(|dict| dict.get("title"))
-                                .and_then(|v| v.as_string())
-                                .unwrap_or(&url)
-                                .to_string();
-
-                            let date_added = entry_map
-                                .get("DateAdded")
-                                .and_then(|v| v.as_date())
-                                .map(|date| format!("{:?}", date))
-                                .unwrap_or_else(|| Utc::now().to_rfc3339());
-
-                            reading_list.push(ReadingListItem {
-                                title,
-                                url,
-                                date_added,
-                            });
-                        }
-                    }
-                }
-                break;
-            }
-        }
-    }
-
-    Ok(reading_list)
+fn load_reading_list_from_file() -> Result<Vec<ReadingListItem>, Box<dyn std::error::Error>> {
+    let path = std::env::var("READING_LIST_FILE")
+        .unwrap_or_else(|_| DEFAULT_READING_LIST_FILE.to_string());
+    let data = fs::read_to_string(&path)?;
+    let items: Vec<ReadingListItem> = serde_json::from_str(&data)?;
+    Ok(items)
 }
 
 // Mind map template
@@ -256,8 +205,8 @@ async fn blog_post(Path(slug): Path<String>) -> Response {
     .into_response()
 }
 
-async fn cv() -> impl axum::response::IntoResponse {
-    CvTemplate
+async fn about() -> impl axum::response::IntoResponse {
+    AboutTemplate
 }
 
 // Reading list handler
@@ -315,6 +264,7 @@ async fn static_handler(Path(path): Path<String>) -> Response {
             Some("woff") => "font/woff",
             Some("woff2") => "font/woff2",
             Some("ttf") => "font/ttf",
+            Some("pdf") => "application/pdf",
             _ => "text/plain",
         };
         let headers = [("content-type", content_type)];
@@ -357,17 +307,17 @@ async fn main() {
             }),
         )
         .route(
-            "/cv",
-            get(|| async {
-                println!("Handling CV page request");
-                cv().await
-            }),
-        )
-        .route(
             "/reading",
             get(|| async {
                 println!("Handling reading list page request");
                 reading().await
+            }),
+        )
+        .route(
+            "/about",
+            get(|| async {
+                println!("Handling about page request");
+                about().await
             }),
         )
         .route(
