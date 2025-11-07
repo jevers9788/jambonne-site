@@ -51,7 +51,11 @@ default:
 lint-all:
     just lint
     cd scripts && uv pip install ruff && uv run ruff check .
-    cd mindmap-service && uv pip install ruff && uv run ruff check .
+    @echo "Skipping mindmap-service lint (service currently decoupled)."
+
+# Optional helper while the mindmap service evolves separately
+lint-mindmap:
+    cd mindmap-service && uv pip install ruff && uv run ruff check . 
 
 # Export Safari reading list to JSON file used by the Rust app
 export-reading-list:

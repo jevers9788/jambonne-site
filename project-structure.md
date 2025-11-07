@@ -1,6 +1,8 @@
 # Project Structure
 
 > **Note:** For the most up-to-date project structure and integration overview, see the top-level `README.md`.
+>
+> **Status:** The `mindmap-service/` described below is under active rework and is currently decoupled from the live Rust site. Treat this document as a future-looking reference rather than an exact description of the deployed system. 
 
 # Project Restructure for Embeddings-Based Mind Maps
 
