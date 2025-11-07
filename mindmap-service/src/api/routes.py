@@ -3,8 +3,15 @@ import uuid
 from datetime import datetime
 
 from ..models import (
-    ReadingListResponse, ScrapingRequest, EmbeddingRequest, MindMapRequest,
-    MindMapResponse, ScrapingOptions, EmbeddingOptions, MindMapOptions
+    ReadingListResponse,
+    ScrapingRequest,
+    EmbeddingRequest,
+    MindMapRequest,
+    MindMapResponse,
+    ScrapingOptions,
+    EmbeddingOptions,
+    MindMapOptions,
+    ProcessReadingListRequest,
 )
 from ..services.safari_reader import SafariReader
 from ..services.web_scraper import WebScraper
@@ -146,7 +153,9 @@ async def get_available_models():
 
 
 @router.post("/process-reading-list")
-async def process_reading_list(background_tasks: BackgroundTasks):
+async def process_reading_list(
+    request: ProcessReadingListRequest = ProcessReadingListRequest(),
+):
     """Complete pipeline: read Safari list, scrape content, generate embeddings, create mind map."""
     try:
         # Step 1: Read Safari reading list
@@ -169,7 +178,7 @@ async def process_reading_list(background_tasks: BackgroundTasks):
         embeddings = embedding_service.generate_embeddings(content_texts, embedding_options)
         
         # Step 4: Create mind map
-        mindmap_options = MindMapOptions()
+        mindmap_options = request.options or MindMapOptions()
         metadata = [
             {
                 "title": entry.title,
