@@ -1,30 +1,19 @@
 import numpy as np
-from sklearn.cluster import KMeans, DBSCAN
-from sklearn.manifold import TSNE
+from sklearn.cluster import DBSCAN, KMeans
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.metrics.pairwise import cosine_similarity
-from typing import List, Dict, Any 
-import re
-from collections import Counter
+from typing import Any, Dict, List, Optional
+
 from ..models import ClusteringMethod, MindMapOptions
+from .keyword_extraction import EmbeddingKeywordExtractor
 
 
 class ClusteringService:
     """Service for clustering articles based on embeddings"""
     
     def __init__(self):
-        self.stop_words = {
-            'this', 'that', 'with', 'have', 'will', 'from', 'they', 'been', 
-            'were', 'said', 'each', 'which', 'their', 'time', 'would', 
-            'there', 'could', 'other', 'than', 'first', 'very', 'after',
-            'some', 'what', 'when', 'where', 'more', 'most', 'over',
-            'into', 'through', 'during', 'before', 'after', 'above',
-            'below', 'between', 'among', 'within', 'without', 'against',
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to',
-            'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be',
-            'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-            'will', 'would', 'could', 'should', 'may', 'might', 'must'
-        }
+        self.keyword_extractor = EmbeddingKeywordExtractor()
     
     def cluster_articles(self, embeddings: List[List[float]], metadata: List[Dict[str, Any]], 
                         options: MindMapOptions) -> Dict[str, Any]:
@@ -55,7 +44,9 @@ class ClusteringService:
         positions = self._generate_2d_positions(embeddings_array)
         
         # Extract keywords for each cluster
-        cluster_keywords = self._extract_cluster_keywords(cluster_labels, metadata)
+        cluster_keywords = self._extract_cluster_keywords(
+            cluster_labels, metadata, embeddings_array
+        )
         
         # Create cluster information
         clusters = []
@@ -76,11 +67,15 @@ class ClusteringService:
         
         # Create nodes for mind map
         nodes = []
-        for i, (embedding, meta, label, pos) in enumerate(zip(embeddings, metadata, cluster_labels, positions)):
+        for i, (embedding, meta, label, pos) in enumerate(
+            zip(embeddings_array, metadata, cluster_labels, positions)
+        ):
             if label == -1:  # Handle noise points
                 label = len(clusters)  # Assign to a new cluster
             
-            keywords = self._extract_article_keywords(meta.get('content', ''))
+            keywords = self._extract_article_keywords(
+                meta.get('content', ''), embedding
+            )
             
             nodes.append({
                 "id": f"node_{i}",
@@ -148,7 +143,12 @@ class ClusteringService:
         
         return positions
     
-    def _extract_cluster_keywords(self, cluster_labels: np.ndarray, metadata: List[Dict[str, Any]]) -> Dict[int, List[str]]:
+    def _extract_cluster_keywords(
+        self,
+        cluster_labels: np.ndarray,
+        metadata: List[Dict[str, Any]],
+        embeddings: np.ndarray,
+    ) -> Dict[int, List[str]]:
         """Extract common keywords for each cluster."""
         cluster_keywords = {}
         
@@ -158,40 +158,43 @@ class ClusteringService:
                 
             # Get all content for this cluster
             cluster_content = []
+            cluster_indices = []
             for i, label in enumerate(cluster_labels):
                 if label == cluster_id:
                     content = metadata[i].get('content', '')
                     if content:
                         cluster_content.append(content)
+                    cluster_indices.append(i)
             
             if cluster_content:
                 # Extract keywords from all content in cluster
                 all_text = ' '.join(cluster_content)
-                keywords = self._extract_keywords(all_text, max_keywords=10)
+                centroid = self._compute_cluster_centroid(embeddings, cluster_indices)
+                keywords = self.keyword_extractor.extract_keywords(
+                    all_text, centroid, max_keywords=10
+                )
                 cluster_keywords[cluster_id] = keywords
         
         return cluster_keywords
     
-    def _extract_article_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
+    def _extract_article_keywords(
+        self, text: str, embedding: Optional[np.ndarray], max_keywords: int = 5
+    ) -> List[str]:
         """Extract keywords from a single article."""
-        return self._extract_keywords(text, max_keywords)
-    
-    def _extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
-        """Extract common keywords from text."""
-        if not text:
-            return []
-        
-        # Simple keyword extraction
-        words = re.findall(r'\b\w{4,}\b', text.lower())
-        
-        # Remove stop words
-        words = [word for word in words if word not in self.stop_words]
-        
-        # Count frequency
-        word_count = Counter(words)
-        
-        # Return most common words
-        return [word for word, count in word_count.most_common(max_keywords)]
+        return self.keyword_extractor.extract_keywords(text, embedding, max_keywords)
+
+    def _compute_cluster_centroid(
+        self, embeddings: np.ndarray, indices: List[int]
+    ) -> Optional[np.ndarray]:
+        if not indices:
+            return None
+        cluster_vectors = embeddings[indices]
+        if cluster_vectors.size == 0:
+            return None
+        centroid = np.mean(cluster_vectors, axis=0)
+        if not np.any(centroid):
+            return None
+        return centroid
     
     def _generate_cluster_name(self, keywords: List[str]) -> str:
         """Generate a name for a cluster based on its keywords."""
@@ -223,7 +226,12 @@ class ClusteringService:
         """Create result for single cluster (when not enough data for clustering)."""
         nodes = []
         for i, (embedding, meta) in enumerate(zip(embeddings, metadata)):
-            keywords = self._extract_article_keywords(meta.get('content', ''))
+            embedding_vector = (
+                np.array(embedding, dtype=np.float32) if embedding else None
+            )
+            keywords = self._extract_article_keywords(
+                meta.get('content', ''), embedding_vector
+            )
             nodes.append({
                 "id": f"node_{i}",
                 "title": meta.get('title', f'Article {i}'),

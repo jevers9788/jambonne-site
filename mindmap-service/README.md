@@ -10,6 +10,7 @@ AI-powered mind map generation service for Safari reading lists. This service ex
 - **Web Content Scraping**: Intelligently extracts main content from web pages
 - **Embedding Generation**: Uses sentence-transformers or OpenAI for text embeddings
 - **Topic Clustering**: K-means, DBSCAN, and hierarchical clustering
+- **Semantic Keywords**: Embedding-based re-ranking for article and cluster keyphrases
 - **Interactive Mind Maps**: Generate visual representations of your reading patterns
 - **RESTful API**: Complete API for integration with frontend applications
 
@@ -182,6 +183,7 @@ src/
     ├── safari_reader.py # Safari reading list extraction
     ├── web_scraper.py   # Web content scraping
     ├── embeddings.py    # Embedding generation
+    ├── keyword_extraction.py # Embedding-based keyword scoring
     └── clustering.py    # Topic clustering
 ```
 

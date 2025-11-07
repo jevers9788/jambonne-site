@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Mind Map - Reading Network{% endblock %}
+
+{% block content %}
+<div class="mindmap-container">
+    <h1>Reading Network</h1>
+    <p style="text-align: center; margin-bottom: 1.5rem;">
+        <a href="/reading" style="font-size: 1.1rem; color: #1a183d; text-decoration: underline;">
+            ← Back to Reading List
+        </a>
+    </p>
+
+    {% if error.is_some() %}
+    <div class="error-message">
+        <p>Error: {{ error.as_ref().unwrap() }}</p>
+        <p>Make sure you've generated the mindmap data using the FastAPI service.</p>
+    </div>
+    {% else if mindmap.is_some() %}
+    {% let data = mindmap.as_ref().unwrap() %}
+    <div class="mindmap-info">
+        <p><strong>{{ data.nodes.len() }}</strong> articles across <strong>{{ data.clusters.len() }}</strong> topic clusters</p>
+        <p class="mindmap-note">Positions based on semantic similarity • Hover for details • Click to open article</p>
+    </div>
+
+    <div class="mindmap-visualization">
+        <div id="mindmap-canvas"></div>
+    </div>
+
+    <div class="mindmap-clusters">
+        <h3>Topic Clusters</h3>
+        <div class="cluster-grid">
+            {% for cluster in data.clusters %}
+            <div class="cluster" data-cluster-id="{{ cluster.id }}">
+                <h4>{{ cluster.name }}</h4>
+                <p class="cluster-size">{{ cluster.articles.len() }} articles</p>
+                <p class="cluster-keywords">{{ cluster.keywords|join_keywords(", ") }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="no-data">
+        <p>No mind map data available.</p>
+        <p>Generate it using the FastAPI service.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    {% if mindmap.is_some() %}
+    {% let data = mindmap.as_ref().unwrap() %}
+    <script>
+        // Embed mind map data
+        const mindmapData = {{ data|tojson|safe }};
+
+        // Configuration
+        const width = 1000;
+        const height = 700;
+        const clusterColors = d3.schemeCategory10;
+
+        // Create SVG
+        const svg = d3.select("#mindmap-canvas")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        // Add zoom behavior
+        const g = svg.append("g");
+
+        svg.call(d3.zoom()
+            .extent([[0, 0], [width, height]])
+            .scaleExtent([0.5, 8])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            }));
+
+        // Scale positions to fit canvas
+        const xExtent = d3.extent(mindmapData.nodes, d => d.position.x);
+        const yExtent = d3.extent(mindmapData.nodes, d => d.position.y);
+
+        const xScale = d3.scaleLinear()
+            .domain(xExtent)
+            .range([100, width - 100]);
+
+        const yScale = d3.scaleLinear()
+            .domain(yExtent)
+            .range([100, height - 100]);
+
+        // Scale node positions
+        mindmapData.nodes.forEach(node => {
+            node.x = xScale(node.position.x);
+            node.y = yScale(node.position.y);
+        });
+
+        // Draw cluster hulls (convex hulls around clusters)
+        const clusters = d3.group(mindmapData.nodes, d => d.cluster);
+
+        clusters.forEach((nodes, clusterId) => {
+            if (nodes.length < 3) return; // Need at least 3 points for a hull
+
+            const points = nodes.map(d => [d.x, d.y]);
+            const hull = d3.polygonHull(points);
+
+            if (hull) {
+                g.append("path")
+                    .datum(hull)
+                    .attr("class", "cluster-hull")
+                    .attr("d", d => {
+                        // Expand hull slightly
+                        const centroid = d3.polygonCentroid(d);
+                        const expanded = d.map(point => {
+                            const dx = point[0] - centroid[0];
+                            const dy = point[1] - centroid[1];
+                            return [
+                                centroid[0] + dx * 1.3,
+                                centroid[1] + dy * 1.3
+                            ];
+                        });
+                        return "M" + expanded.join("L") + "Z";
+                    })
+                    .style("fill", clusterColors[clusterId % 10])
+                    .style("opacity", 0.1)
+                    .style("stroke", clusterColors[clusterId % 10])
+                    .style("stroke-width", 2)
+                    .style("stroke-opacity", 0.3);
+            }
+        });
+
+        // Draw edges
+        const edges = g.append("g")
+            .selectAll("line")
+            .data(mindmapData.edges)
+            .enter().append("line")
+            .attr("class", "edge")
+            .attr("x1", d => {
+                const sourceNode = mindmapData.nodes.find(n => n.id === d.source);
+                return sourceNode ? sourceNode.x : 0;
+            })
+            .attr("y1", d => {
+                const sourceNode = mindmapData.nodes.find(n => n.id === d.source);
+                return sourceNode ? sourceNode.y : 0;
+            })
+            .attr("x2", d => {
+                const targetNode = mindmapData.nodes.find(n => n.id === d.target);
+                return targetNode ? targetNode.x : 0;
+            })
+            .attr("y2", d => {
+                const targetNode = mindmapData.nodes.find(n => n.id === d.target);
+                return targetNode ? targetNode.y : 0;
+            })
+            .style("stroke", "#999")
+            .style("stroke-opacity", 0.3)
+            .style("stroke-width", d => d.weight * 2);
+
+        // Create tooltip
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "mindmap-tooltip")
+            .style("opacity", 0);
+
+        // Draw nodes
+        const nodes = g.append("g")
+            .selectAll("circle")
+            .data(mindmapData.nodes)
+            .enter().append("circle")
+            .attr("class", "node")
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", 6)
+            .style("fill", d => clusterColors[d.cluster % 10])
+            .style("stroke", "#fff")
+            .style("stroke-width", 2)
+            .style("cursor", "pointer")
+            .on("mouseover", function(event, d) {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr("r", 10);
+
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", 0.95);
+
+                const cluster = mindmapData.clusters.find(c => c.id === d.cluster);
+                tooltip.html(`
+                    <strong>${d.title}</strong><br/>
+                    <em>Cluster: ${cluster ? cluster.name : 'Unknown'}</em><br/>
+                    Keywords: ${d.keywords.slice(0, 3).join(", ")}
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(event, d) {
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr("r", 6);
+
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on("click", function(event, d) {
+                window.open(d.url, '_blank');
+            });
+
+        // Add cluster labels
+        clusters.forEach((nodes, clusterId) => {
+            const cluster = mindmapData.clusters.find(c => c.id === clusterId);
+            if (!cluster) return;
+
+            const centroidX = d3.mean(nodes, d => d.x);
+            const centroidY = d3.mean(nodes, d => d.y);
+
+            g.append("text")
+                .attr("class", "cluster-label")
+                .attr("x", centroidX)
+                .attr("y", centroidY)
+                .attr("text-anchor", "middle")
+                .style("font-size", "14px")
+                .style("font-weight", "bold")
+                .style("fill", clusterColors[clusterId % 10])
+                .style("opacity", 0.5)
+                .style("pointer-events", "none")
+                .text(cluster.name);
+        });
+    </script>
+    {% endif %}
+{% endblock %}

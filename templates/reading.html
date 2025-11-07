@@ -5,7 +5,12 @@
 {% block content %}
 <div class="reading-container">
     <h1> Reading </h1>
-    
+    <p style="text-align: center; margin-bottom: 1.5rem;">
+        <a href="/mindmap" style="font-size: 1.1rem; color: #1a183d; text-decoration: underline;">
+            View as Interactive Mind Map →
+        </a>
+    </p>
+
     {% if error.is_some() %}
     <div class="error-message">
         <p>Error: {{ error.as_ref().unwrap() }}</p>

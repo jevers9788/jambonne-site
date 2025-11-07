@@ -51,7 +51,7 @@ struct ArticleTemplate {
 }
 
 // Mind map data structures
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct MindMapNode {
     id: String,
     title: String,
@@ -62,20 +62,20 @@ struct MindMapNode {
     content_preview: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct Position {
     x: f64,
     y: f64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct MindMapEdge {
     source: String,
     target: String,
     weight: f64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct MindMapCluster {
     id: i32,
     name: String,
@@ -83,7 +83,7 @@ struct MindMapCluster {
     articles: Vec<i32>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 struct ReadingData {
     id: String,
     nodes: Vec<MindMapNode>,
@@ -102,11 +102,19 @@ struct ReadingListItem {
 
 // Global reading list data - thread-safe lazy initialization
 const DEFAULT_READING_LIST_FILE: &str = "static/data/reading_list.json";
+const DEFAULT_MINDMAP_FILE: &str = "static/data/mindmap.json";
 
 static READING_LIST: Lazy<Vec<ReadingListItem>> = Lazy::new(|| {
     load_reading_list_from_file().unwrap_or_else(|e| {
         eprintln!("Failed to load reading list: {}", e);
         Vec::new()
+    })
+});
+
+static MINDMAP_DATA: Lazy<Option<ReadingData>> = Lazy::new(|| {
+    load_mindmap_from_file().unwrap_or_else(|e| {
+        eprintln!("Failed to load mindmap data: {}", e);
+        None
     })
 });
 
@@ -118,11 +126,26 @@ fn load_reading_list_from_file() -> Result<Vec<ReadingListItem>, Box<dyn std::er
     Ok(items)
 }
 
+fn load_mindmap_from_file() -> Result<Option<ReadingData>, Box<dyn std::error::Error>> {
+    let path = std::env::var("MINDMAP_FILE")
+        .unwrap_or_else(|_| DEFAULT_MINDMAP_FILE.to_string());
+    let data = fs::read_to_string(&path)?;
+    let mindmap: ReadingData = serde_json::from_str(&data)?;
+    Ok(Some(mindmap))
+}
+
 // Mind map template
 #[derive(Template)]
 #[template(path = "reading.html")]
 struct ReadingTemplate {
     reading: Option<ReadingData>,
+    error: Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "mindmap.html")]
+struct MindMapTemplate {
+    mindmap: Option<ReadingData>,
     error: Option<String>,
 }
 
@@ -253,6 +276,13 @@ fn build_router() -> Router {
             }),
         )
         .route(
+            "/mindmap",
+            get(|| async {
+                println!("Handling mindmap page request");
+                mindmap().await
+            }),
+        )
+        .route(
             "/about",
             get(|| async {
                 println!("Handling about page request");
@@ -309,6 +339,22 @@ async fn reading() -> impl IntoResponse {
         error: None,
     }
     .into_response()
+}
+
+// Mindmap handler
+async fn mindmap() -> impl IntoResponse {
+    match &*MINDMAP_DATA {
+        Some(data) => MindMapTemplate {
+            mindmap: Some(data.clone()),
+            error: None,
+        }
+        .into_response(),
+        None => MindMapTemplate {
+            mindmap: None,
+            error: Some("No mindmap data available. Generate it using the FastAPI service.".to_string()),
+        }
+        .into_response(),
+    }
 }
 
 // Custom static file handler that serves from embedded files
