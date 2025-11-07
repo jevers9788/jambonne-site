@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Safari Reading List Mind Map Generator - Setup Script
+# Safari Reading List Scripts - Setup Script
 
-echo "🚀 Setting up Safari Reading List Mind Map Generator..."
+echo "🚀 Setting up Safari Reading List scripts..."
 
 # Check if uv is installed
 if ! command -v uv &> /dev/null; then
@@ -34,8 +34,7 @@ if [ $? -eq 0 ]; then
     echo "✅ Dependencies installed successfully!"
     echo ""
     echo "🎉 Setup complete! You can now run:"
-    echo "   uv run python reading_list.py"
-    echo "   uv run python mind_map_visualizer.py"
+    echo "   uv run python export_reading_list.py --output ../static/data/reading_list.json"
     echo ""
     echo "📖 See README.md for more information"
 else

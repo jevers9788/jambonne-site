@@ -1,16 +1,13 @@
-# Safari Reading List Mind Map Generator
+# Safari Reading List Scripts
 
-> **Note:** These scripts are optional/legacy. For most users, we recommend using the `mindmap-service` microservice for mind map generation and integration with the Rust website. See the top-level `README.md` for project structure and integration details.
+> **Note:** These scripts are legacy utilities. For mind map generation, use the `mindmap-service` FastAPI microservice. See the top-level `README.md` for project structure and integration details.
 
-This tool extracts your Safari reading list, scrapes the content from each URL, and generates a mind map visualization to help you understand the themes and content of your saved articles.
+This script extracts your Safari reading list and exports it to JSON format for use by the Rust website.
 
 ## Features
 
 - **Safari Reading List Extraction**: Reads your Safari bookmarks.plist file to extract your reading list
-- **Web Content Scraping**: Intelligently extracts main content from web pages
-- **Mind Map Generation**: Creates visual mind maps showing relationships between articles
-- **Keyword Analysis**: Extracts common keywords from your reading content
-- **Multiple Output Formats**: Generates PNG images and text summaries
+- **JSON Export**: Exports reading list to `static/data/reading_list.json` for the Rust site
 
 ## Quick Start
 
@@ -60,12 +57,6 @@ This will:
 # Run the scraper
 make run-scrape
 
-# Generate mind maps
-make run-visualize
-
-# Run both in sequence
-make all
-
 # Clean generated files
 make clean
 
@@ -75,33 +66,18 @@ make help
 
 ### Manual Usage
 
-#### Step 1: Extract and Scrape Reading List
-
-Run the main script to extract your Safari reading list and optionally scrape content:
+Run the script to extract your Safari reading list:
 
 ```bash
-uv run python reading_list.py
+uv run python export_reading_list.py --output ../static/data/reading_list.json
 ```
 
 The script will:
 1. Read your Safari reading list from `~/Library/Safari/Bookmarks.plist`
-2. Ask if you want to scrape content from the URLs
-3. If you choose 'y', it will scrape each URL with respectful delays
-4. Save the raw data to `reading_list_content.json`
-5. Generate mind map data to `mind_map_data.json`
+2. Extract title, URL, and date added for each article
+3. Save the data to JSON format
 
-#### Step 2: Generate Mind Map Visualizations
-
-After scraping, create visual mind maps:
-
-```bash
-uv run python mind_map_visualizer.py
-```
-
-This will generate:
-- `mind_map.png`: Basic mind map visualization
-- `enhanced_mind_map.png`: Enhanced mind map with keyword analysis
-- `mind_map_summary.txt`: Text summary of all articles
+**Note**: For mind map generation with embeddings and clustering, use the `mindmap-service` FastAPI application.
 
 ## Development
 
@@ -197,7 +173,7 @@ In `reading_list.py`, you can modify:
 - Content length limits for mind map processing
 
 ### Customizing Visualizations
-In `mind_map_visualizer.py`, you can adjust:
+In the scripts, you can adjust:
 - Figure sizes and DPI for different output qualities
 - Color schemes for different content lengths
 - Keyword extraction parameters
