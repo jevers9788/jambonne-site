@@ -173,7 +173,7 @@ class ClusteringService:
                 keywords = self.keyword_extractor.extract_keywords(
                     all_text, centroid, max_keywords=10
                 )
-                cluster_keywords[cluster_id] = keywords
+                cluster_keywords[cluster_id] = keywords["semantic"] or keywords["fallback"]
         
         return cluster_keywords
     
@@ -181,7 +181,8 @@ class ClusteringService:
         self, text: str, embedding: Optional[np.ndarray], max_keywords: int = 5
     ) -> List[str]:
         """Extract keywords from a single article."""
-        return self.keyword_extractor.extract_keywords(text, embedding, max_keywords)
+        result = self.keyword_extractor.extract_keywords(text, embedding, max_keywords)
+        return result["semantic"] or result["fallback"]
 
     def _compute_cluster_centroid(
         self, embeddings: np.ndarray, indices: List[int]

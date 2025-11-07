@@ -43,6 +43,17 @@ def parse_args() -> argparse.Namespace:
         "--top-k", type=int, default=5, help="Number of keywords to display."
     )
     parser.add_argument(
+        "--ner-model",
+        type=str,
+        default="en_core_web_sm",
+        help="spaCy model to use for NER candidates.",
+    )
+    parser.add_argument(
+        "--disable-ner",
+        action="store_true",
+        help="Disable NER-based candidate generation.",
+    )
+    parser.add_argument(
         "--clusters",
         action="store_true",
         help="Also recompute cluster keywords if present.",
@@ -55,10 +66,20 @@ def load_fixture(path: Path) -> Dict[str, Any]:
         return json.load(f)
 
 
-def display_keywords(title: str, old: Sequence[str], new: Sequence[str]) -> None:
+def display_keywords(
+    title: str,
+    old: Sequence[str],
+    semantic: Sequence[str],
+    fallback: Sequence[str],
+) -> None:
     print(f"\n{title}")
     print(f"  Old: {', '.join(old) if old else '-'}")
-    print(f"  New: {', '.join(new) if new else '-'}")
+    if semantic:
+        print(f"  Semantic: {', '.join(semantic)}")
+    if fallback:
+        print(f"  Fallback: {', '.join(fallback)}")
+    if not semantic and not fallback:
+        print("  Semantic/Fallback: -")
 
 
 def recompute_article_keywords(
@@ -72,8 +93,13 @@ def recompute_article_keywords(
         embedding = None
         if embeddings and idx < len(embeddings):
             embedding = np.array(embeddings[idx], dtype=np.float32)
-        new_keywords = extractor.extract_keywords(content, embedding, max_keywords=top_k)
-        display_keywords(f"Article {idx}: {node.get('title', 'Untitled')}", node.get("keywords", []), new_keywords)
+        result = extractor.extract_keywords(content, embedding, max_keywords=top_k)
+        display_keywords(
+            f"Article {idx}: {node.get('title', 'Untitled')}",
+            node.get("keywords", []),
+            result["semantic"],
+            result["fallback"],
+        )
 
 
 def recompute_cluster_keywords(
@@ -96,8 +122,13 @@ def recompute_cluster_keywords(
         if vectors:
             centroid = np.mean(np.array(vectors, dtype=np.float32), axis=0)
         concatenated = " ".join(texts)
-        new_keywords = extractor.extract_keywords(concatenated, centroid, max_keywords=top_k)
-        display_keywords(f"Cluster {cluster.get('id')}", cluster.get("keywords", []), new_keywords)
+        result = extractor.extract_keywords(concatenated, centroid, max_keywords=top_k)
+        display_keywords(
+            f"Cluster {cluster.get('id')}",
+            cluster.get("keywords", []),
+            result["semantic"],
+            result["fallback"],
+        )
 
 
 def main() -> None:
@@ -107,6 +138,8 @@ def main() -> None:
         model_name=args.model,
         max_ngram=args.max_ngram,
         max_candidates=args.max_candidates,
+        enable_ner=not args.disable_ner,
+        ner_model=args.ner_model,
     )
 
     print("=== Article Keywords ===")
