@@ -1,9 +1,15 @@
 import re
 from collections import Counter
-from typing import List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+try:
+    import spacy
+    from spacy.language import Language
+except ImportError:  # pragma: no cover
+    spacy = None
+    Language = None
 
 
 DEFAULT_STOP_WORDS: Set[str] = {
@@ -76,6 +82,18 @@ DEFAULT_STOP_WORDS: Set[str] = {
     "must",
 }
 
+DEFAULT_NER_LABELS: Set[str] = {
+    "PERSON",
+    "ORG",
+    "GPE",
+    "LOC",
+    "NORP",
+    "PRODUCT",
+    "EVENT",
+    "WORK_OF_ART",
+    "LAW",
+}
+
 
 class EmbeddingKeywordExtractor:
     """Generate keywords using semantic similarity between phrases and embeddings."""
@@ -86,60 +104,71 @@ class EmbeddingKeywordExtractor:
         stop_words: Optional[Set[str]] = None,
         max_ngram: int = 3,
         max_candidates: int = 60,
+        enable_ner: bool = True,
+        ner_model: str = "en_core_web_sm",
+        ner_labels: Optional[Set[str]] = None,
     ):
         self.model_name = model_name
         self.stop_words = stop_words or DEFAULT_STOP_WORDS
         self.max_ngram = max_ngram
         self.max_candidates = max_candidates
+        self.enable_ner = enable_ner and spacy is not None
+        self.ner_model = ner_model
+        self.ner_labels = ner_labels or DEFAULT_NER_LABELS
         self._token_pattern = re.compile(r"\b[a-zA-Z][\w-]+\b")
         self._model: Optional[SentenceTransformer] = None
+        self._nlp: Optional["Language"] = None
 
     def extract_keywords(
         self,
         text: str,
         base_embedding: Optional[Sequence[float]],
         max_keywords: int = 10,
-    ) -> List[str]:
-        """Return keywords ranked by semantic similarity to the base embedding."""
+    ) -> Dict[str, List[str]]:
+        """Return keywords separated into embedding-ranked and fallback categories."""
         if not text:
-            return []
+            return {"semantic": [], "fallback": []}
 
         candidates = self._generate_candidates(text)
         if not candidates:
-            return self._frequency_keywords(text, max_keywords)
+            fallback = self._frequency_keywords(text, max_keywords)
+            return {"semantic": [], "fallback": fallback}
 
         base_vector = self._prepare_base_embedding(base_embedding, text)
         if base_vector is None:
-            return self._frequency_keywords(text, max_keywords)
+            fallback = self._frequency_keywords(text, max_keywords)
+            return {"semantic": [], "fallback": fallback}
 
         try:
             candidate_embeddings = self._encode_candidates(candidates)
         except Exception:
-            return self._frequency_keywords(text, max_keywords)
+            fallback = self._frequency_keywords(text, max_keywords)
+            return {"semantic": [], "fallback": fallback}
 
         scores = candidate_embeddings @ base_vector
         ranked = [
-            phrase
-            for _, phrase in sorted(
-                zip(scores, candidates), key=lambda pair: pair[0], reverse=True
+            (phrase, score)
+            for phrase, score in sorted(
+                zip(candidates, scores), key=lambda pair: pair[1], reverse=True
             )
         ]
 
-        deduped: List[str] = []
+        semantic: List[str] = []
         seen: Set[str] = set()
-        for phrase in ranked:
+        for phrase, _ in ranked:
             normalized = phrase.strip()
             if not normalized or normalized in seen:
                 continue
-            deduped.append(normalized)
+            semantic.append(normalized)
             seen.add(normalized)
-            if len(deduped) >= max_keywords:
+            if len(semantic) >= max_keywords:
                 break
 
-        if not deduped:
-            return self._frequency_keywords(text, max_keywords)
+        if semantic:
+            return {"semantic": semantic, "fallback": []}
 
-        return deduped
+        fallback = self._frequency_keywords(text, max_keywords)
+        return {"semantic": [], "fallback": fallback}
 
     def _prepare_base_embedding(
         self, base_embedding: Optional[Sequence[float]], text: str
@@ -192,6 +221,9 @@ class EmbeddingKeywordExtractor:
         if chunk:
             candidates.extend(self._candidates_from_chunk(chunk))
 
+        if self.enable_ner:
+            candidates.extend(self._ner_candidates(text))
+
         deduped: List[str] = []
         seen: Set[str] = set()
         for phrase in candidates:
@@ -233,3 +265,26 @@ class EmbeddingKeywordExtractor:
     def _ensure_model(self) -> None:
         if self._model is None:
             self._model = SentenceTransformer(self.model_name)
+
+    def _ner_candidates(self, text: str) -> List[str]:
+        """Extract entity spans as candidate phrases."""
+        nlp = self._ensure_nlp()
+        if not nlp:
+            return []
+        doc = nlp(text)
+        return [
+            ent.text.strip()
+            for ent in doc.ents
+            if ent.label_ in self.ner_labels and len(ent.text.strip()) >= 4
+        ]
+
+    def _ensure_nlp(self) -> Optional["Language"]:
+        if not self.enable_ner or spacy is None:
+            return None
+        if self._nlp is not None:
+            return self._nlp
+        try:
+            self._nlp = spacy.load(self.ner_model)
+        except Exception:
+            self._nlp = None
+        return self._nlp

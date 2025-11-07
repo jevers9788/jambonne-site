@@ -127,8 +127,7 @@ fn load_reading_list_from_file() -> Result<Vec<ReadingListItem>, Box<dyn std::er
 }
 
 fn load_mindmap_from_file() -> Result<Option<ReadingData>, Box<dyn std::error::Error>> {
-    let path = std::env::var("MINDMAP_FILE")
-        .unwrap_or_else(|_| DEFAULT_MINDMAP_FILE.to_string());
+    let path = std::env::var("MINDMAP_FILE").unwrap_or_else(|_| DEFAULT_MINDMAP_FILE.to_string());
     let data = fs::read_to_string(&path)?;
     let mindmap: ReadingData = serde_json::from_str(&data)?;
     Ok(Some(mindmap))
@@ -351,7 +350,9 @@ async fn mindmap() -> impl IntoResponse {
         .into_response(),
         None => MindMapTemplate {
             mindmap: None,
-            error: Some("No mindmap data available. Generate it using the FastAPI service.".to_string()),
+            error: Some(
+                "No mindmap data available. Generate it using the FastAPI service.".to_string(),
+            ),
         }
         .into_response(),
     }
