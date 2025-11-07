@@ -89,7 +89,7 @@ def recompute_article_keywords(
     embeddings = data.get("embeddings") or []
 
     for idx, node in enumerate(nodes):
-        content = node.get("content_preview") or node.get("content", "")
+        content = node.get("content") or node.get("content_preview", "")
         embedding = None
         if embeddings and idx < len(embeddings):
             embedding = np.array(embeddings[idx], dtype=np.float32)
@@ -115,7 +115,7 @@ def recompute_cluster_keywords(
         vectors = []
         for idx in article_indices:
             if idx < len(nodes):
-                texts.append(nodes[idx].get("content_preview") or "")
+                texts.append(nodes[idx].get("content") or nodes[idx].get("content_preview") or "")
             if embeddings and idx < len(embeddings):
                 vectors.append(embeddings[idx])
         centroid = None

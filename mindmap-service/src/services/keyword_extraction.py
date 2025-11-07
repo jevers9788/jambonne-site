@@ -1,15 +1,17 @@
 import re
 from collections import Counter
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 try:
     import spacy
     from spacy.language import Language
+    from spacy.tokens import Doc
 except ImportError:  # pragma: no cover
     spacy = None
     Language = None
+    Doc = None
 
 
 DEFAULT_STOP_WORDS: Set[str] = {
@@ -129,7 +131,8 @@ class EmbeddingKeywordExtractor:
         if not text:
             return {"semantic": [], "fallback": []}
 
-        candidates = self._generate_candidates(text)
+        doc = self._get_doc(text)
+        candidates = self._generate_candidates(text, doc)
         if not candidates:
             fallback = self._frequency_keywords(text, max_keywords)
             return {"semantic": [], "fallback": fallback}
@@ -155,12 +158,17 @@ class EmbeddingKeywordExtractor:
 
         semantic: List[str] = []
         seen: Set[str] = set()
+        seen_tokens: List[Tuple[str, ...]] = []
         for phrase, _ in ranked:
             normalized = phrase.strip()
             if not normalized or normalized in seen:
                 continue
+            token_key = self._phrase_token_signature(normalized)
+            if self._is_redundant(token_key, seen_tokens):
+                continue
             semantic.append(normalized)
             seen.add(normalized)
+            seen_tokens.append(token_key)
             if len(semantic) >= max_keywords:
                 break
 
@@ -202,9 +210,70 @@ class EmbeddingKeywordExtractor:
         )
         return np.array(embeddings, dtype=np.float32)
 
-    def _generate_candidates(self, text: str) -> List[str]:
+    def _generate_candidates(self, text: str, doc: Optional["Doc"]) -> List[str]:
         """Produce candidate phrases up to the configured n-gram length."""
-        tokens = self._tokenize(text)
+        if doc is not None:
+            token_stream = self._tokens_from_doc(doc)
+        else:
+            token_stream = self._tokenize(text)
+
+        if not token_stream:
+            return []
+
+        if doc is not None:
+            candidates = self._candidates_from_doc(doc, token_stream)
+        else:
+            candidates = self._candidates_from_tokens(token_stream)
+
+        deduped: List[str] = []
+        seen: Set[str] = set()
+
+        for phrase in candidates:
+            normalized = self._clean_phrase(phrase)
+            if not normalized or normalized in seen:
+                continue
+            deduped.append(normalized)
+            seen.add(normalized)
+            if len(deduped) >= self.max_candidates:
+                break
+
+        return deduped
+
+    def _candidates_from_doc(self, doc: "Doc", token_stream: List[str]) -> List[str]:
+        """Use spaCy noun chunks, entities, and fallback n-grams."""
+        candidates: List[str] = []
+
+        # Noun chunks capture many multiword subjects
+        if getattr(doc, "is_parsed", False):
+            for chunk in doc.noun_chunks:
+                text = self._clean_phrase(chunk.text)
+                if self._valid_candidate(text):
+                    candidates.append(text)
+
+        # Entities provide high-value proper nouns
+        for ent in doc.ents:
+            if ent.label_ in self.ner_labels:
+                text = self._clean_phrase(ent.text)
+                if self._valid_candidate(text):
+                    candidates.append(text)
+
+        # Fallback n-gram extraction that respects punctuation via doc tokens
+        chunk: List[str] = []
+        for token in doc:
+            if token.is_punct or token.is_space or token.lower_ in self.stop_words:
+                if chunk:
+                    candidates.extend(self._candidates_from_chunk(chunk))
+                    chunk = []
+                continue
+            chunk.append(token.text.lower())
+
+        if chunk:
+            candidates.extend(self._candidates_from_chunk(chunk))
+
+        return candidates or self._candidates_from_tokens(token_stream)
+
+    def _candidates_from_tokens(self, tokens: List[str]) -> List[str]:
+        """Fallback candidate generation using pre-tokenized text."""
         if not tokens:
             return []
 
@@ -221,22 +290,7 @@ class EmbeddingKeywordExtractor:
         if chunk:
             candidates.extend(self._candidates_from_chunk(chunk))
 
-        if self.enable_ner:
-            candidates.extend(self._ner_candidates(text))
-
-        deduped: List[str] = []
-        seen: Set[str] = set()
-        for phrase in candidates:
-            if phrase not in seen:
-                deduped.append(phrase)
-                seen.add(phrase)
-            if len(deduped) >= self.max_candidates:
-                break
-
-        if not deduped:
-            return []
-
-        return deduped
+        return candidates
 
     def _candidates_from_chunk(self, chunk: List[str]) -> List[str]:
         """Create n-gram candidates from a contiguous chunk of tokens."""
@@ -266,18 +320,6 @@ class EmbeddingKeywordExtractor:
         if self._model is None:
             self._model = SentenceTransformer(self.model_name)
 
-    def _ner_candidates(self, text: str) -> List[str]:
-        """Extract entity spans as candidate phrases."""
-        nlp = self._ensure_nlp()
-        if not nlp:
-            return []
-        doc = nlp(text)
-        return [
-            ent.text.strip()
-            for ent in doc.ents
-            if ent.label_ in self.ner_labels and len(ent.text.strip()) >= 4
-        ]
-
     def _ensure_nlp(self) -> Optional["Language"]:
         if not self.enable_ner or spacy is None:
             return None
@@ -288,3 +330,52 @@ class EmbeddingKeywordExtractor:
         except Exception:
             self._nlp = None
         return self._nlp
+
+    def _get_doc(self, text: str) -> Optional["Doc"]:
+        nlp = self._ensure_nlp()
+        if not nlp:
+            return None
+        try:
+            return nlp(text)
+        except Exception:
+            return None
+
+    def _tokens_from_doc(self, doc: "Doc") -> List[str]:
+        tokens = [
+            token.text.lower()
+            for token in doc
+            if not token.is_space and not token.is_punct
+        ]
+        return tokens
+
+    def _clean_phrase(self, phrase: str) -> str:
+        normalized = " ".join(phrase.split())
+        return normalized.strip(" -_,.;:!?\"'()[]{}")
+
+    def _valid_candidate(self, phrase: str) -> bool:
+        if not phrase or len(phrase) < 4:
+            return False
+        tokens = [tok for tok in phrase.lower().split() if tok]
+        if not tokens:
+            return False
+        # Reject phrases that are entirely stop words
+        if all(tok in self.stop_words for tok in tokens):
+            return False
+        return True
+
+    def _phrase_token_signature(self, phrase: str) -> Tuple[str, ...]:
+        return tuple(token for token in phrase.lower().split() if token)
+
+    def _is_redundant(
+        self, candidate_tokens: Tuple[str, ...], existing: List[Tuple[str, ...]]
+    ) -> bool:
+        if not candidate_tokens:
+            return True
+        candidate_set = set(candidate_tokens)
+        for tokens in existing:
+            other_set = set(tokens)
+            overlap = len(candidate_set & other_set)
+            base = min(len(candidate_set), len(other_set))
+            if base > 0 and overlap / base >= 0.7:
+                return True
+        return False
