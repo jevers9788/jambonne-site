@@ -42,6 +42,7 @@ class MindMapOptions(BaseModel):
     n_clusters: int = 5
     visualization_type: str = "interactive"
     include_keywords: bool = True
+    target_cluster_size: int = 4
 
 
 class ScrapingRequest(BaseModel):
@@ -57,6 +58,10 @@ class EmbeddingRequest(BaseModel):
 class MindMapRequest(BaseModel):
     embeddings: List[List[float]]
     metadata: List[Dict[str, Any]]
+    options: Optional[MindMapOptions] = None
+
+
+class ProcessReadingListRequest(BaseModel):
     options: Optional[MindMapOptions] = None
 
 

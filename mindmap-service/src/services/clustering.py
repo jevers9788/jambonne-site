@@ -26,7 +26,11 @@ class ClusteringService:
         
         # Determine optimal number of clusters if using KMeans
         if options.clustering_method == ClusteringMethod.KMEANS:
-            n_clusters = min(options.n_clusters, len(embeddings) - 1, 10)
+            n_clusters = self._determine_kmeans_clusters(
+                len(embeddings),
+                options.n_clusters,
+                options.target_cluster_size,
+            )
             if n_clusters < 2:
                 return self._create_single_cluster_result(embeddings, metadata)
         else:
@@ -106,6 +110,17 @@ class ClusteringService:
         """Perform K-means clustering."""
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         return kmeans.fit_predict(embeddings)
+
+    def _determine_kmeans_clusters(
+        self, n_samples: int, requested: int, target_size: int
+    ) -> int:
+        if n_samples < 2:
+            return 1
+        if target_size <= 0:
+            target_size = 4
+        max_by_samples = max(2, n_samples // target_size)
+        max_reasonable = min(n_samples - 1, max_by_samples)
+        return max(2, min(requested, max_reasonable, 10))
     
     def _dbscan_clustering(self, embeddings: np.ndarray) -> np.ndarray:
         """Perform DBSCAN clustering."""
