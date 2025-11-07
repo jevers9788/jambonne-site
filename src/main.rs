@@ -120,7 +120,7 @@ fn load_reading_list_from_file() -> Result<Vec<ReadingListItem>, Box<dyn std::er
 
 // Mind map template
 #[derive(Template)]
-#[template(path = "reading.html", escape = "none")]
+#[template(path = "reading.html")]
 struct ReadingTemplate {
     reading: Option<ReadingData>,
     error: Option<String>,
@@ -222,6 +222,52 @@ async fn about() -> impl axum::response::IntoResponse {
     AboutTemplate
 }
 
+fn build_router() -> Router {
+    Router::new()
+        .route(
+            "/",
+            get(|| async {
+                println!("Handling landing page request");
+                landing().await
+            }),
+        )
+        .route(
+            "/blog",
+            get(|| async {
+                println!("Handling blog page request");
+                blog().await
+            }),
+        )
+        .route(
+            "/blog/:slug",
+            get(|path| async move {
+                println!("Handling blog post request: {:?}", path);
+                blog_post(path).await
+            }),
+        )
+        .route(
+            "/reading",
+            get(|| async {
+                println!("Handling reading list page request");
+                reading().await
+            }),
+        )
+        .route(
+            "/about",
+            get(|| async {
+                println!("Handling about page request");
+                about().await
+            }),
+        )
+        .route(
+            "/static/*path",
+            get(|path| async move {
+                println!("Handling static file request: {:?}", path);
+                static_handler(path).await
+            }),
+        )
+}
+
 // Reading list handler
 async fn reading() -> impl IntoResponse {
     let items = &*READING_LIST;
@@ -292,49 +338,7 @@ async fn main() {
     println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
 
-    let app = Router::new()
-        .route(
-            "/",
-            get(|| async {
-                println!("Handling landing page request");
-                landing().await
-            }),
-        )
-        .route(
-            "/blog",
-            get(|| async {
-                println!("Handling blog page request");
-                blog().await
-            }),
-        )
-        .route(
-            "/blog/:slug",
-            get(|path| async move {
-                println!("Handling blog post request: {:?}", path);
-                blog_post(path).await
-            }),
-        )
-        .route(
-            "/reading",
-            get(|| async {
-                println!("Handling reading list page request");
-                reading().await
-            }),
-        )
-        .route(
-            "/about",
-            get(|| async {
-                println!("Handling about page request");
-                about().await
-            }),
-        )
-        .route(
-            "/static/*path",
-            get(|path| async move {
-                println!("Handling static file request: {:?}", path);
-                static_handler(path).await
-            }),
-        );
+    let app = build_router();
 
     // Use environment variables for deployment flexibility
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
@@ -360,5 +364,62 @@ async fn main() {
     if let Err(e) = axum::serve(listener, app).await {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn landing_route_returns_ok() {
+        let app = build_router();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn blog_route_rejects_traversal_slug() {
+        let app = build_router();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/blog/bad!slug")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn blog_route_valid_slug_missing_file() {
+        let app = build_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/blog/nonexistent-slug")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
     }
 }
