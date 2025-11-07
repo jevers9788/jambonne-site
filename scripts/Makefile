@@ -1,15 +1,14 @@
-.PHONY: setup install run-scrape run-visualize clean format lint test help
+.PHONY: setup install run-scrape clean format lint test help
 
 # Default target
 help:
-	@echo "Safari Reading List Mind Map Generator"
+	@echo "Safari Reading List Scripts"
 	@echo "======================================"
 	@echo ""
 	@echo "Available commands:"
 	@echo "  setup        - Install uv and dependencies"
 	@echo "  install      - Install dependencies only"
 	@echo "  run-scrape   - Run the reading list scraper"
-	@echo "  run-visualize - Run the mind map visualizer"
 	@echo "  clean        - Remove generated files"
 	@echo "  format       - Format code with ruff"
 	@echo "  lint         - Lint code with ruff"
@@ -32,11 +31,6 @@ install:
 run-scrape:
 	@echo "🔍 Running Safari reading list scraper..."
 	uv run python reading_list.py
-
-# Run the visualizer
-run-visualize:
-	@echo "🎨 Generating mind map visualizations..."
-	uv run python mind_map_visualizer.py
 
 # Clean generated files
 clean:
@@ -63,5 +57,5 @@ test:
 	@echo "🧪 Running tests..."
 	uv run pytest
 
-# Quick start - run both scraper and visualizer
-all: run-scrape run-visualize 
+# Quick start - run scraper
+all: run-scrape 
