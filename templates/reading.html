@@ -9,7 +9,7 @@
     {% if error.is_some() %}
     <div class="error-message">
         <p>Error: {{ error.as_ref().unwrap() }}</p>
-        <p>Make sure Safari reading list has items and the application can access the Bookmarks.plist file.</p>
+        <p>Make sure you've exported your Safari reading list with <code>scripts/export_reading_list.py</code>.</p>
     </div>
     {% else if reading.is_some() %}
     <div class="reading-info">
@@ -28,7 +28,7 @@
     {% else %}
     <div class="no-data">
         <p>No reading list data available.</p>
-        <p>Make sure Safari reading list has items and the application can access the Bookmarks.plist file.</p>
+        <p>Make sure you've exported your Safari reading list with <code>scripts/export_reading_list.py</code>.</p>
     </div>
     {% endif %}
 </div>
