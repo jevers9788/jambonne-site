@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: jambonne-site
-    env: rust
-    buildCommand: cargo build --release
-    startCommand: cargo run --release
-    envVars:
-      - key: RUST_VERSION
-        value: 1.75.0 

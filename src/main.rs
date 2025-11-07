@@ -131,6 +131,15 @@ struct BlogPostMeta {
     title: String,
 }
 
+fn is_valid_slug(slug: &str) -> bool {
+    let len = slug.len();
+    len > 0
+        && len <= 128
+        && slug
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 async fn landing() -> impl axum::response::IntoResponse {
     IndexTemplate
 }
@@ -169,6 +178,10 @@ async fn blog() -> impl axum::response::IntoResponse {
 }
 
 async fn blog_post(Path(slug): Path<String>) -> Response {
+    if !is_valid_slug(&slug) {
+        return axum::http::StatusCode::BAD_REQUEST.into_response();
+    }
+
     // Try different possible locations for the posts directory
     let posts_dirs = ["posts", "/app/posts"];
     let mut path = String::new();
@@ -278,11 +291,6 @@ async fn main() {
     println!("Reached main!");
     println!("Starting jambonne-site...");
     println!("Static files embedded in binary");
-
-    // Log environment variables
-    for (key, value) in std::env::vars() {
-        println!("env: {}={}", key, value);
-    }
 
     let app = Router::new()
         .route(

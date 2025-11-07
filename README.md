@@ -1,77 +1,32 @@
-# Jambonne: Personal Website & Mind Map
+# Jambonne: Personal Website
 
-This is my personal website, featuring a blog, CV, and a unique mind map visualization of my Safari reading list. The mind map is generated using a custom Python backend and displayed via a Rust web frontend.
+This repository houses the Rust/Axum site that is currently deployed. A separate `mindmap-service/` FastAPI project still lives in the repo, but it is **decoupled for now** while it undergoes heavy changes and is not part of the running site.
 
-- **Rust Website (Frontend):** Fast, type-safe web frontend that displays my mind maps, blog, and other content.
-- **Python Mind Map Service (Backend):** FastAPI microservice for extracting, scraping, embedding, and clustering my reading list into mind maps.
-- **(Optional) Python Scripts:** Legacy/standalone scripts for local mind map generation and visualization.
+- **Rust Website (Frontend):** Fast, type-safe web frontend that powers the live site (landing page, about, reading list).
+- **Mind Map Service (On Hold):** Experimental FastAPI microservice kept in `mindmap-service/` for future work but intentionally not wired into the site or deployment pipeline.
+- **Python Scripts:** Standalone utilities (e.g., exporting the Safari reading list) used by the Rust site.
 
 ---
 
 ## Project Structure
 
 - `src/` — Rust web application (frontend)
-- `mindmap-service/` — Python FastAPI microservice (recommended backend)
-- `scripts/` — Optional/legacy Python scripts for local use
-- `templates/` — Shared HTML templates (Askama for Rust)
-- `static/` — Static assets (CSS, fonts, etc.)
+- `mindmap-service/` — FastAPI microservice (experimental, currently decoupled)
+- `scripts/` — Python utilities (e.g., Safari reading list export)
+- `templates/` — Askama HTML templates
+- `static/` — Static assets (CSS, fonts, images, data)
 
 ---
 
-## System Overview
+## Current Workflow
 
-```mermaid
-flowchart TD
-    A["Safari Reading List (Bookmarks.plist)"]
-    B["Python Mind Map Service (FastAPI)"]
-    C["Rust Website (Frontend)"]
-    D["User's Browser"]
-    E["Optional: Python Scripts"]
-
-    A -->|"Extract & Scrape"| B
-    B -->|"REST API (JSON Mind Map)"| C
-    C -->|"Render Mind Map Page"| D
-    E -->|"Local Mind Map Generation"| D
-    E -->|"Can use"| B
-    A -->|"Can use"| E
-    C -->|"Static Assets, Templates"| D
-```
-
----
-
-## Recommended Workflow
-
-1. **Run the Python Mind Map Service**
-   - See [`mindmap-service/README.md`](mindmap-service/README.md) for setup and API usage.
-   - Deploy locally or on Railway.
-2. **Start the Rust Website**
-   - The site fetches mind map data from the Python service and renders it.
-   - See [`rust-mindmap-integration.md`](rust-mindmap-integration.md) for integration details.
-3. **(Optional) Use Python Scripts**
-   - For local/offline mind map generation, see [`scripts/README.md`](scripts/README.md).
-
----
-
-## Documentation
-
-- **Backend Service:** [`mindmap-service/README.md`](mindmap-service/README.md)
-- **Rust Integration Guide:** [`rust-mindmap-integration.md`](rust-mindmap-integration.md)
-- **Legacy Scripts:** [`scripts/README.md`](scripts/README.md)
-- **Project Structure:** [`project-structure.md`](project-structure.md)
-
----
+1. **Export your Safari Reading List (if you want `/reading` populated)** using the provided Python script.
+2. **Run the Rust site** locally or via Docker.
+3. **(Optional)** Work on the experimental mind map service separately; it no longer needs to be running for the site to build or serve pages.
 
 ## Quick Start
 
-### 1. Mind Map Service (Python, FastAPI)
-```bash
-cd mindmap-service
-uv sync
-cp env.example .env  # Edit as needed
-uv run uvicorn src.main:app --reload
-```
-
-### 2. Export Your Safari Reading List (optional but needed for reading page)
+### 1. Export Your Safari Reading List
 ```bash
 uv run python scripts/export_reading_list.py \
   --output static/data/reading_list.json
@@ -81,11 +36,23 @@ uv run python scripts/export_reading_list.py \
 - Override the destination with `--output` or set the `READING_LIST_FILE` env var for the Rust server.
 - When building Docker images, copy the exported JSON into the container so `/reading` works without macOS data access.
 
-### 3. Rust Website
+### 2. Rust Website
 ```bash
 cargo run
-# Visit http://localhost:3000/mindmap
+# Visit http://localhost:3000/
 ```
+
+---
+
+## Mind Map Service (On Hold)
+
+The FastAPI service still lives in `mindmap-service/`, but it is intentionally decoupled:
+
+- Not referenced by the Rust router.
+- Not linted or built by default (`just lint-all` skips it; use `just lint-mindmap` if you need to work on it).
+- Deployment manifests do not start it.
+
+You can still develop it independently by following [`mindmap-service/README.md`](mindmap-service/README.md) when you’re ready to re-integrate.
 
 ---
 
