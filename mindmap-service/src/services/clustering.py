@@ -84,7 +84,8 @@ class ClusteringService:
                 "cluster": int(label),
                 "position": {"x": float(pos[0]), "y": float(pos[1])},
                 "keywords": keywords[:5],  # Top 5 keywords
-                "content_preview": meta.get('content', '')[:200] + "..." if meta.get('content') else ""
+                "content_preview": meta.get('content', '')[:200] + "..." if meta.get('content') else "",
+                "content": meta.get('content', '')
             })
         
         # Create edges based on similarity
@@ -240,7 +241,8 @@ class ClusteringService:
                 "cluster": 0,
                 "position": {"x": 0.0, "y": 0.0},
                 "keywords": keywords[:5],
-                "content_preview": meta.get('content', '')[:200] + "..." if meta.get('content') else ""
+                "content_preview": meta.get('content', '')[:200] + "..." if meta.get('content') else "",
+                "content": meta.get('content', '')
             })
         
         return {

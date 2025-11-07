@@ -68,6 +68,7 @@ class MindMapNode(BaseModel):
     position: Dict[str, float]
     keywords: List[str]
     content_preview: str
+    content: Optional[str] = None
 
 
 class MindMapEdge(BaseModel):
