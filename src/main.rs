@@ -18,6 +18,24 @@ async fn landing() -> impl axum::response::IntoResponse {
     IndexTemplate
 }
 
+// 301 www.<host> -> <host> so Google sees a single canonical hostname
+async fn redirect_www(req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    let host = req
+        .headers()
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok());
+    if let Some(bare) = host.and_then(|h| h.strip_prefix("www.")) {
+        let path = req
+            .uri()
+            .path_and_query()
+            .map(|p| p.as_str())
+            .unwrap_or("/");
+        let location = format!("https://{}{}", bare, path);
+        return axum::response::Redirect::permanent(&location).into_response();
+    }
+    next.run(req).await
+}
+
 fn build_router() -> Router {
     Router::new()
         .route("/", get(landing))
@@ -44,6 +62,7 @@ fn build_router() -> Router {
             }),
         )
         .route("/static/*path", get(static_handler))
+        .layer(axum::middleware::from_fn(redirect_www))
 }
 
 // Custom static file handler that serves from embedded files
@@ -114,5 +133,26 @@ mod tests {
             .expect("response");
 
         assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn www_host_redirects_to_bare_domain() {
+        let app = build_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/about")
+                    .header("host", "www.jambon.net")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::PERMANENT_REDIRECT
+        );
+        assert_eq!(response.headers()["location"], "https://jambon.net/about");
     }
 }
