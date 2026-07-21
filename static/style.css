@@ -24,33 +24,16 @@ body {
     text-rendering: optimizeLegibility;
 }
 
+/* Empty header keeps the card at its pre-nav-removal position */
 header {
     background: transparent;
-    border-bottom: 2px solid #5a678e; /* A slightly brighter blue for separation */
+    border-bottom: 2px solid #5a678e;
     padding: 1.5rem 0;
     margin-bottom: 2rem;
 }
 
 nav {
-    max-width: 800px;
-    margin: 0 auto;
-    display: flex;
-    gap: 2rem;
-    justify-content: center;
-}
-
-nav a {
-    color: #e0f2ff; /* A very light, almost white-blue */
-    text-decoration: none;
-    font-weight: 400;
-    font-size: 1.2rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12rem;
-}
-
-nav a:hover {
-    color: #fff;
-    text-decoration: underline;
+    min-height: 1.7rem; /* Height the nav links used to occupy */
 }
 
 /* White content box like the title block on the cover */
@@ -62,7 +45,7 @@ main {
     padding: 3rem;
     border: 6px solid #050505;
     color-scheme: light; /* Prevent browser dark-mode inversion */
-    text-align: center; /* Center all text content */
+    text-align: left; /* Left-aligned body text; multi-line centered text is hard to read */
     position: relative;
     z-index: 0;
     box-shadow: none;
@@ -92,6 +75,20 @@ h1, h2, h3 {
     color: #000000; /* Black headings inside the white box */
     font-weight: 400;
     letter-spacing: 0.04rem;
+    text-align: center; /* Headings stay centered for the title-block look */
+}
+
+main p {
+    max-width: 62ch; /* Comfortable reading measure */
+    margin: 0 auto 1.25rem;
+    line-height: 1.7;
+    font-size: 1.15rem;
+}
+
+/* Short link rows read fine centered, unlike running prose */
+.social-links p {
+    text-align: center;
+    margin-top: 2.5rem;
 }
 
 h1 {

@@ -19,9 +19,9 @@ clean:
 run:
     cargo run
 
-# Run in development mode
+# Run in development mode: rebuild + restart on any source/template/static change
 dev:
-    cargo run
+    cargo watch -w src -w templates -w static -x run
 
 # Check for errors without building
 check:
@@ -48,15 +48,4 @@ rebuild: clean build
 default:
     @just --list
 
-lint-all:
-    just lint
-    cd scripts && uv pip install ruff && uv run ruff check .
-    @echo "Skipping mindmap-service lint (service currently decoupled)."
 
-# Optional helper while the mindmap service evolves separately
-lint-mindmap:
-    cd mindmap-service && uv pip install ruff && uv run ruff check . 
-
-# Export Safari reading list to JSON file used by the Rust app
-export-reading-list:
-    uv run python scripts/export_reading_list.py --output static/data/reading_list.json
