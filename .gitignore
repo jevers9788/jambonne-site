@@ -83,6 +83,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+## Mindmap Service
+/mindmap-service/storage/*.json
+!/mindmap-service/storage/.gitkeep
+
 ## Node
 node_modules
 package-lock.json

@@ -17,6 +17,7 @@ from ..services.safari_reader import SafariReader
 from ..services.web_scraper import WebScraper
 from ..services.embeddings import EmbeddingService
 from ..services.clustering import ClusteringService
+from .. import storage
 
 router = APIRouter(prefix="/api", tags=["mindmap"])
 
@@ -26,8 +27,13 @@ web_scraper = WebScraper()
 embedding_service = EmbeddingService()
 clustering_service = ClusteringService()
 
-# In-memory storage for mind maps (in production, use a database)
-mind_maps = {}
+# Load mindmaps from persistent storage on startup
+try:
+    mind_maps = storage.load_mindmaps()
+    print(f"Loaded {len(mind_maps)} mindmaps from storage")
+except Exception as e:
+    print(f"Warning: Could not load mindmaps from storage: {e}")
+    mind_maps = {}
 
 
 @router.get("/reading-list", response_model=ReadingListResponse)
@@ -103,10 +109,14 @@ async def create_mindmap(request: MindMapRequest, background_tasks: BackgroundTa
             metadata=clustering_result["metadata"],
             created_at=datetime.utcnow()
         )
-        
-        # Store mind map (in production, save to database)
+
+        # Store mind map to persistent storage
         mind_maps[mindmap_id] = mindmap_response
-        
+        try:
+            storage.save_mindmap(mindmap_id, mindmap_response.model_dump())
+        except Exception as e:
+            print(f"Warning: Failed to save mindmap to storage: {e}")
+
         return mindmap_response
         
     except Exception as e:
@@ -206,8 +216,13 @@ async def process_reading_list(
             created_at=datetime.utcnow()
         )
         
-        # Store mind map
+        # Store mind map to persistent storage
         mind_maps[mindmap_id] = mindmap_response
+        try:
+            storage.save_mindmap(mindmap_id, mindmap_response.model_dump())
+        except Exception as e:
+            print(f"Warning: Failed to save mindmap to storage: {e}")
+
         print(f"DEBUG: Stored mind map with ID: {mindmap_id}")
         print(f"DEBUG: Total mind maps stored: {len(mind_maps)}")
         print(f"DEBUG: Mind map keys: {list(mind_maps.keys())}")
@@ -233,8 +248,14 @@ async def delete_mindmap(mindmap_id: str):
     """Delete a specific mind map."""
     if mindmap_id not in mind_maps:
         raise HTTPException(status_code=404, detail="Mind map not found")
-    
+
+    # Delete from in-memory and persistent storage
     del mind_maps[mindmap_id]
+    try:
+        storage.delete_mindmap(mindmap_id)
+    except Exception as e:
+        print(f"Warning: Failed to delete mindmap from storage: {e}")
+
     return {"message": "Mind map deleted successfully"}
 
 

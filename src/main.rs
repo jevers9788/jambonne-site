@@ -40,10 +40,6 @@ struct BlogTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "about.html")]
-struct AboutTemplate;
-
-#[derive(Template)]
 #[template(path = "article.html")]
 struct ArticleTemplate {
     title: String,
@@ -240,10 +236,6 @@ async fn blog_post(Path(slug): Path<String>) -> Response {
     .into_response()
 }
 
-async fn about() -> impl axum::response::IntoResponse {
-    AboutTemplate
-}
-
 fn build_router() -> Router {
     Router::new()
         .route(
@@ -283,9 +275,18 @@ fn build_router() -> Router {
         )
         .route(
             "/about",
+            get(|| async { axum::response::Redirect::permanent("/") }),
+        )
+        .route(
+            "/robots.txt",
             get(|| async {
-                println!("Handling about page request");
-                about().await
+                ([("content-type", "text/plain")], include_str!("../static/robots.txt"))
+            }),
+        )
+        .route(
+            "/sitemap.xml",
+            get(|| async {
+                ([("content-type", "application/xml")], include_str!("../static/sitemap.xml"))
             }),
         )
         .route(
