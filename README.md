@@ -44,6 +44,16 @@ cargo run
 
 ---
 
+## Static assets
+
+The homepage uses `static/v1/` for its CSS, WebP background, and locally hosted
+EB Garamond Latin font (regular weight, SIL Open Font License in `OFL.txt`).
+These URLs are cached for one year as immutable. When changing these assets,
+create a new version directory and update the template, CSS URLs, and cache
+policy in `src/main.rs`; keep old versions available for cached pages.
+Other static files are cached for one hour. The original background JPEG is
+retained as the source for future image exports, but is not loaded by the page.
+
 ## Mind Map Service (On Hold)
 
 The FastAPI service still lives in `mindmap-service/`, but it is intentionally decoupled:

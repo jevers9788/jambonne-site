@@ -72,6 +72,7 @@ async fn static_handler(Path(path): Path<String>) -> Response {
             Some("css") => "text/css",
             Some("js") => "application/javascript",
             Some("png") => "image/png",
+            Some("webp") => "image/webp",
             Some("jpg") | Some("jpeg") => "image/jpeg",
             Some("svg") => "image/svg+xml",
             Some("woff") => "font/woff",
@@ -80,7 +81,15 @@ async fn static_handler(Path(path): Path<String>) -> Response {
             Some("pdf") => "application/pdf",
             _ => "text/plain",
         };
-        let headers = [("content-type", content_type)];
+        let cache_control = if path.starts_with("v1/") {
+            "public, max-age=31536000, immutable"
+        } else {
+            "public, max-age=3600"
+        };
+        let headers = [
+            ("content-type", content_type),
+            ("cache-control", cache_control),
+        ];
         return (headers, file.contents()).into_response();
     }
     axum::http::StatusCode::NOT_FOUND.into_response()
@@ -133,6 +142,56 @@ mod tests {
             .expect("response");
 
         assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn static_assets_have_correct_types_and_cache_policies() {
+        for (path, content_type, cache_control) in [
+            (
+                "v1/style.css",
+                "text/css",
+                "public, max-age=31536000, immutable",
+            ),
+            (
+                "v1/v2_blueprint.webp",
+                "image/webp",
+                "public, max-age=31536000, immutable",
+            ),
+            (
+                "v1/eb-garamond-latin-400.woff2",
+                "font/woff2",
+                "public, max-age=31536000, immutable",
+            ),
+            ("robots.txt", "text/plain", "public, max-age=3600"),
+        ] {
+            let response = build_router()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/static/{path}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), axum::http::StatusCode::OK, "{path}");
+            assert_eq!(response.headers()["content-type"], content_type, "{path}");
+            assert_eq!(response.headers()["cache-control"], cache_control, "{path}");
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            assert!(!body.is_empty(), "{path}");
+        }
+        let response = build_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/static/v1/missing.webp")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+        assert!(!response.headers().contains_key("cache-control"));
     }
 
     #[tokio::test]
