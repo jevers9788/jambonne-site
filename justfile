@@ -21,7 +21,7 @@ run:
 
 # Run in development mode: rebuild + restart on any source/template/static change
 dev:
-    cargo watch -w src -w templates -w static -x run
+    cargo watch -w src -w templates -w static -w blog -x run
 
 # Check for errors without building
 check:

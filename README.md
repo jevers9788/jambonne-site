@@ -33,8 +33,10 @@ uv run python scripts/export_reading_list.py \
 ```
 - Requires Full Disk Access for your terminal the first time you read `Bookmarks.plist`.
 - Checks `~/Library/Safari/Bookmarks.plist`, extracts title/url/date, and writes JSON your site can embed or copy into a Docker image.
-- Override the destination with `--output` or set the `READING_LIST_FILE` env var for the Rust server.
-- When building Docker images, copy the exported JSON into the container so `/reading` works without macOS data access.
+- Override the export destination with `--output`.
+- `/reading` embeds `static/data/reading_list.json` at build time, just like blog posts.
+  Review the exported links, then rebuild and deploy to update the public list.
+  Docker builds include this file automatically; no Safari access is needed at runtime.
 
 ### 2. Rust Website
 ```bash
@@ -43,6 +45,18 @@ cargo run
 ```
 
 ---
+
+## Blog
+
+Visit `/blog` for the post listing. Posts are trusted, repository-authored Markdown
+compiled into the binary, with tables supported. To publish another post:
+
+1. Add `blog/<slug>.md`, starting with a `# Title` heading.
+2. Add its slug, title, and `include_str!` entry to `POSTS` in `src/main.rs`
+   (listing order follows this array).
+3. Add its URL to `static/sitemap.xml`, then rebuild and deploy the site.
+
+There is no browser editor or runtime content upload.
 
 ## Static assets
 

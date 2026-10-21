@@ -364,6 +364,8 @@ dependencies = [
  "axum",
  "include_dir",
  "pulldown-cmark",
+ "serde",
+ "serde_json",
  "tokio",
  "tower 0.4.13",
 ]

@@ -56,6 +56,38 @@ async fn blog() -> impl axum::response::IntoResponse {
     BlogTemplate { posts: POSTS }
 }
 
+#[derive(serde::Deserialize)]
+struct ReadingItem {
+    title: String,
+    url: String,
+}
+
+#[derive(Template)]
+#[template(path = "reading.html")]
+struct ReadingTemplate {
+    items: Vec<ReadingItem>,
+}
+
+fn parse_reading_list(data: &str) -> Result<Vec<ReadingItem>, serde_json::Error> {
+    let mut items: Vec<ReadingItem> = serde_json::from_str(data)?;
+    items.retain(|item| {
+        item.url.parse::<axum::http::Uri>().is_ok_and(|uri| {
+            matches!(uri.scheme_str(), Some("http" | "https")) && uri.host().is_some()
+        })
+    });
+    Ok(items)
+}
+
+async fn reading() -> Response {
+    match parse_reading_list(include_str!("../static/data/reading_list.json")) {
+        Ok(items) => ReadingTemplate { items }.into_response(),
+        Err(error) => {
+            eprintln!("Failed to load reading list: {error}");
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
 async fn post(Path(slug): Path<String>) -> Response {
     let Some(post) = POSTS.iter().find(|post| post.slug == slug) else {
         return axum::http::StatusCode::NOT_FOUND.into_response();
@@ -103,6 +135,7 @@ fn build_router() -> Router {
     Router::new()
         .route("/", get(landing))
         .route("/blog", get(blog))
+        .route("/reading", get(reading))
         .route("/blog/:slug", get(post))
         .route(
             "/about",
@@ -193,11 +226,35 @@ mod tests {
     use axum::{body::Body, http::Request};
     use tower::util::ServiceExt;
 
+    #[test]
+    fn reading_list_validates_links_and_escapes_titles() {
+        let items = parse_reading_list(
+            r#"[
+            {"title":"<script>alert(1)</script>","url":"https://example.com/"},
+            {"title":"unsafe","url":"javascript:alert(1)"},
+            {"title":"relative","url":"/private"}
+        ]"#,
+        )
+        .unwrap();
+        assert_eq!(items.len(), 1);
+        let html = ReadingTemplate { items }.render().unwrap();
+        assert!(html.contains("&lt;script&gt;"));
+        assert!(!html.contains("javascript:"));
+        assert!(parse_reading_list("invalid json").is_err());
+        let saved = parse_reading_list(include_str!("../static/data/reading_list.json")).unwrap();
+        assert!(!saved.is_empty());
+        assert!(ReadingTemplate { items: vec![] }
+            .render()
+            .unwrap()
+            .contains("No reading links yet."));
+    }
+
     #[tokio::test]
     async fn blog_pages_render_and_unknown_posts_return_404() {
         for (path, expected) in [
             ("/", "href=\"/blog\""),
             ("/blog", "href=\"/blog/ai-compiler\""),
+            ("/reading", "Weatherizing Salem"),
             (
                 "/blog/ai-compiler",
                 "<h1>How Low Can You Go: LLMs as Kernel Compilers</h1>",
@@ -217,6 +274,9 @@ mod tests {
                 .unwrap();
             let body = std::str::from_utf8(&body).unwrap();
             assert!(body.contains(expected), "{path}");
+            if path == "/" {
+                assert!(body.contains("href=\"/reading\""));
+            }
             assert_eq!(body.contains("as=\"image\""), path == "/");
             if path.starts_with("/blog/") {
                 assert_eq!(body.matches("class=\"post-header\"").count(), 1);
