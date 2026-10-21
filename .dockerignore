@@ -3,4 +3,4 @@ target/
 .gitignore
 README.md
 *.md
-!posts/*.md 
+!blog/*.md

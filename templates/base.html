@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="darkreader-lock">
-    <title>{% block title %}James Evers{% endblock %}</title>
-    <meta name="description" content="Personal site of James Evers — machine learning engineer, editor, and writer in Brooklyn, New York.">
+    <title>{% block title %}James Walsh Evers{% endblock %}</title>
+    <meta name="description" content="Personal site of James Walsh Evers — machine learning engineer, editor, and writer in Brooklyn, New York.">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "Person",
-      "name": "James Evers",
+      "name": "James Walsh Evers",
       "url": "https://jambon.net/",
       "jobTitle": "Machine Learning Engineer",
       "address": {"@type": "PostalAddress", "addressLocality": "Brooklyn", "addressRegion": "NY"},
@@ -21,8 +21,9 @@
     }
     </script>
     <link rel="preload" href="/static/v1/eb-garamond-latin-400.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/static/v1/v2_blueprint.webp" as="image" type="image/webp">
+    {% block background_preload %}<link rel="preload" href="/static/v1/v2_blueprint.webp" as="image" type="image/webp">{% endblock %}
     <link rel="stylesheet" href="/static/v1/style.css">
+    {% block styles %}{% endblock %}
 </head>
 <body>
     <header>

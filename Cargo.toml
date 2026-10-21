@@ -9,6 +9,7 @@ tokio = { version = "1.0", features = ["full"] }
 askama = "0.12"
 askama_axum = "0.4"
 include_dir = "0.7"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 
 [dev-dependencies]
 tower = { version = "0.4", features = ["util"] }

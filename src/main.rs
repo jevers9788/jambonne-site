@@ -18,6 +18,69 @@ async fn landing() -> impl axum::response::IntoResponse {
     IndexTemplate
 }
 
+struct Post {
+    slug: &'static str,
+    title: &'static str,
+    markdown: &'static str,
+}
+
+static POSTS: &[Post] = &[
+    Post {
+        slug: "ai-compiler",
+        title: "How Low Can You Go: LLMs as Kernel Compilers",
+        markdown: include_str!("../blog/ai-compiler.md"),
+    },
+    Post {
+        slug: "dumpster-cluster",
+        title: "Out But Not Down: the V100 Lives Again",
+        markdown: include_str!("../blog/dumpster-cluster.md"),
+    },
+];
+
+#[derive(Template)]
+#[template(path = "blog.html")]
+struct BlogTemplate {
+    posts: &'static [Post],
+}
+
+#[derive(Template)]
+#[template(path = "post.html")]
+struct PostTemplate {
+    title: &'static str,
+    slug: &'static str,
+    posts: &'static [Post],
+    html: String,
+}
+
+async fn blog() -> impl axum::response::IntoResponse {
+    BlogTemplate { posts: POSTS }
+}
+
+async fn post(Path(slug): Path<String>) -> Response {
+    let Some(post) = POSTS.iter().find(|post| post.slug == slug) else {
+        return axum::http::StatusCode::NOT_FOUND.into_response();
+    };
+    let mut html = String::new();
+    // The template owns the title and byline; omit the Markdown title.
+    let markdown = post
+        .markdown
+        .strip_prefix("# ")
+        .and_then(|text| text.split_once('\n'))
+        .map_or(post.markdown, |(_, body)| body);
+    // Only repository-authored Markdown is rendered as trusted HTML.
+    pulldown_cmark::html::push_html(
+        &mut html,
+        pulldown_cmark::Parser::new_ext(markdown, pulldown_cmark::Options::ENABLE_TABLES),
+    );
+    PostTemplate {
+        title: post.title,
+        slug: post.slug,
+        posts: POSTS,
+        html,
+    }
+    .into_response()
+}
+
 // 301 www.<host> -> <host> so Google sees a single canonical hostname
 async fn redirect_www(req: axum::extract::Request, next: axum::middleware::Next) -> Response {
     let host = req
@@ -39,6 +102,8 @@ async fn redirect_www(req: axum::extract::Request, next: axum::middleware::Next)
 fn build_router() -> Router {
     Router::new()
         .route("/", get(landing))
+        .route("/blog", get(blog))
+        .route("/blog/:slug", get(post))
         .route(
             "/about",
             get(|| async { axum::response::Redirect::permanent("/") }),
@@ -127,6 +192,58 @@ mod tests {
     use super::*;
     use axum::{body::Body, http::Request};
     use tower::util::ServiceExt;
+
+    #[tokio::test]
+    async fn blog_pages_render_and_unknown_posts_return_404() {
+        for (path, expected) in [
+            ("/", "href=\"/blog\""),
+            ("/blog", "href=\"/blog/ai-compiler\""),
+            (
+                "/blog/ai-compiler",
+                "<h1>How Low Can You Go: LLMs as Kernel Compilers</h1>",
+            ),
+            (
+                "/blog/dumpster-cluster",
+                "<h1>Out But Not Down: the V100 Lives Again</h1>",
+            ),
+        ] {
+            let response = build_router()
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), axum::http::StatusCode::OK);
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let body = std::str::from_utf8(&body).unwrap();
+            assert!(body.contains(expected), "{path}");
+            assert_eq!(body.contains("as=\"image\""), path == "/");
+            if path.starts_with("/blog/") {
+                assert_eq!(body.matches("class=\"post-header\"").count(), 1);
+                assert!(!body.contains("<h1>Dumpster Cluster</h1>"));
+                assert!(body.contains("<p class=\"byline\">James Walsh Evers</p>"));
+            }
+            if path == "/blog/ai-compiler" {
+                assert!(body.contains("href=\"/blog/dumpster-cluster\""));
+                assert!(!body.contains("href=\"/blog/ai-compiler\""));
+                assert!(body.contains("class=\"rocket-home\" href=\"/\""));
+                assert!(body.contains("<table>"));
+                assert!(body.contains(">0.271 ms</td>"));
+                assert!(body.contains("href=\"https://arxiv.org/pdf/2609.36800\""));
+                assert_eq!(body.matches("<h1>").count(), 1);
+            }
+        }
+        let response = build_router()
+            .oneshot(
+                Request::builder()
+                    .uri("/blog/missing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+    }
 
     #[tokio::test]
     async fn landing_route_returns_ok() {

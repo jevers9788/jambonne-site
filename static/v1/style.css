@@ -87,8 +87,8 @@ h1, h2, h3 {
 }
 
 main p {
-    max-width: 62ch; /* Comfortable reading measure */
-    margin: 0 auto 1.25rem;
+    max-width: 74ch; /* Comfortable reading measure */
+    margin: 0 auto 0.25rem;
     line-height: 1.7;
     font-size: 1.15rem;
 }

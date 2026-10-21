@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — James Evers{% endblock %}
+{% block background_preload %}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/blog.css">{% endblock %}
+{% block content %}
+<div class="post-layout">
+<article>
+    <header class="post-header">
+        <h1>{{ title }}</h1>
+        <p class="byline">James Walsh Evers</p>
+    </header>
+    {{ html|safe }}
+</article>
+<aside aria-label="More writing">
+    <h2>Other articles</h2>
+    <ul class="post-links">
+    {% for other in posts %}
+        {% if other.slug != slug %}
+        <li><a href="/blog/{{ other.slug }}">{{ other.title }}</a></li>
+        {% endif %}
+    {% endfor %}
+    </ul>
+    <a class="all-posts" href="/blog">All posts</a>
+    <a class="rocket-home" href="/" aria-label="Home">
+        <img src="/static/images/rocket-home.svg" width="72" height="96" alt="">
+        <span>Home</span>
+    </a>
+</aside>
+</div>
+{% endblock %}

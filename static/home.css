@@ -1,0 +1,7 @@
+main {
+    background: #fff !important;
+}
+
+main::before {
+    border-color: #fff;
+}
