@@ -14,7 +14,7 @@ import json
 import plistlib
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 DEFAULT_INPUT = Path("~/Library/Safari/Bookmarks.plist").expanduser()
@@ -22,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "static" / "data" / "reading_list.json"
 
 
-def extract_reading_list(bookmarks_path: Path) -> List[Dict[str, Any]]:
+def extract_reading_list(bookmarks_path: Path) -> list[dict[str, Any]]:
     if not bookmarks_path.exists():
         raise FileNotFoundError(f"Safari Bookmarks.plist not found at {bookmarks_path}")
 
@@ -38,7 +38,7 @@ def extract_reading_list(bookmarks_path: Path) -> List[Dict[str, Any]]:
     if not reading_list:
         return []
 
-    entries: List[Dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
     for entry in reading_list:
         url = entry.get("URLString")
         if not url:
@@ -62,7 +62,7 @@ def extract_reading_list(bookmarks_path: Path) -> List[Dict[str, Any]]:
     return entries
 
 
-def normalize_title(raw_title: Optional[str], url: str) -> str:
+def normalize_title(raw_title: str | None, url: str) -> str:
     """Return a human-friendly title, fixing cases where Safari stores only the URL."""
     if raw_title and not raw_title.startswith("http"):
         return raw_title
@@ -77,10 +77,10 @@ def normalize_title(raw_title: Optional[str], url: str) -> str:
     return raw_title or url
 
 
-def derive_substack_title(parsed) -> Optional[str]:
+def derive_substack_title(parsed) -> str | None:
     """Best-effort title extraction for Substack URLs."""
     segments = [seg for seg in parsed.path.split("/") if seg]
-    slug: Optional[str] = None
+    slug: str | None = None
 
     if "p" in segments:
         idx = segments.index("p")
@@ -109,7 +109,7 @@ def derive_substack_title(parsed) -> Optional[str]:
     return readable
 
 
-def write_json(entries: List[Dict[str, Any]], output_path: Path) -> None:
+def write_json(entries: list[dict[str, Any]], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as fh:
         json.dump(entries, fh, indent=2, ensure_ascii=False)

@@ -1,11 +1,13 @@
-import plistlib
+from __future__ import annotations
+
+import json
 import os
+import plistlib
+import re
+import time
+
 import requests
 from bs4 import BeautifulSoup
-import time
-import re
-import json
-from typing import List, Dict, Optional
 
 
 def clean_text(text: str) -> str:
@@ -20,7 +22,7 @@ def clean_text(text: str) -> str:
     return text
 
 
-def extract_text_from_url(url: str, timeout: int = 10) -> Optional[str]:
+def extract_text_from_url(url: str, timeout: int = 10) -> str | None:
     """Extract main text content from a URL."""
     try:
         # Add headers to mimic a real browser
@@ -67,12 +69,12 @@ def extract_text_from_url(url: str, timeout: int = 10) -> Optional[str]:
         text = main_content.get_text()
         return clean_text(text)
 
-    except Exception as e:
+    except requests.RequestException as e:
         print(f"Error scraping {url}: {e}")
         return None
 
 
-def read_safari_reading_list() -> List[Dict]:
+def read_safari_reading_list() -> list[dict]:
     """Read Safari reading list and return structured data."""
     # Construct the path to the Bookmarks.plist file
     bookmarks_path = os.path.expanduser("~/Library/Safari/Bookmarks.plist")
@@ -114,12 +116,12 @@ def read_safari_reading_list() -> List[Dict]:
             print("No Reading List found in Bookmarks.plist.")
             return []
 
-    except Exception as e:
+    except (OSError, plistlib.InvalidFileException) as e:
         print(f"Error reading Bookmarks.plist: {e}")
         return []
 
 
-def scrape_reading_list_content(entries: List[Dict], delay: float = 1.0) -> List[Dict]:
+def scrape_reading_list_content(entries: list[dict], delay: float = 1.0) -> list[dict]:
     """Scrape content from reading list URLs."""
     scraped_entries = []
 
@@ -161,17 +163,17 @@ def scrape_reading_list_content(entries: List[Dict], delay: float = 1.0) -> List
     return scraped_entries
 
 
-def save_scraped_data(entries: List[Dict], filename: str = "reading_list_content.json"):
+def save_scraped_data(entries: list[dict], filename: str = "reading_list_content.json"):
     """Save scraped data to JSON file."""
     try:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(entries, f, indent=2, ensure_ascii=False, default=str)
         print(f"Saved scraped data to {filename}")
-    except Exception as e:
+    except OSError as e:
         print(f"Error saving data: {e}")
 
 
-def generate_mind_map_data(entries: List[Dict]) -> Dict:
+def generate_mind_map_data(entries: list[dict]) -> dict:
     """Generate structured data for mind map creation."""
     mind_map = {"central_topic": "Safari Reading List", "branches": []}
 
