@@ -35,6 +35,11 @@ static POSTS: &[Post] = &[
         title: "Out But Not Down: the V100 Lives Again",
         markdown: include_str!("../blog/dumpster-cluster.md"),
     },
+    Post {
+        slug: "deep-infer",
+        title: "Notes on DeepInfer",
+        markdown: include_str!("../blog/deep-infer.md")
+    },
 ];
 
 #[derive(Template)]
@@ -286,7 +291,7 @@ mod tests {
             if path == "/blog/ai-compiler" {
                 assert!(body.contains("href=\"/blog/dumpster-cluster\""));
                 assert!(!body.contains("href=\"/blog/ai-compiler\""));
-                assert!(body.contains("class=\"rocket-home\" href=\"/\""));
+                assert!(body.contains("class=\"banana-home\" href=\"/\""));
                 assert!(body.contains("<table>"));
                 assert!(body.contains(">0.271 ms</td>"));
                 assert!(body.contains("href=\"https://arxiv.org/pdf/2609.36800\""));

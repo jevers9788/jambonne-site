@@ -53,7 +53,7 @@ aside .post-links {
     line-height: 1.35;
 }
 
-.post-links a, .rocket-home {
+.post-links a, .banana-home {
     text-decoration: none;
 }
 
@@ -61,7 +61,15 @@ aside .post-links {
     text-decoration: underline;
 }
 
-.rocket-home {
+.banana-home {
+    display: inline-block;
+}
+
+.banana-home img {
+    display: block;
+}
+
+aside .banana-home {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -140,6 +148,19 @@ article h2, article h3 {
     line-height: 1.25;
 }
 
+article > p {
+    margin-bottom: 0.5rem;
+}
+
+article > p + p {
+    text-indent: 1.5em;
+}
+
+article > p:has(img) {
+    text-indent: 0;
+    margin: 1.25rem 0;
+}
+
 main > ul > li > a {
   text-decoration: none;
 }
@@ -152,6 +173,10 @@ main ul, main ol {
     margin: 0 0 1.25rem;
     padding-left: 1.5rem;
     line-height: 1.5;
+}
+
+article li + li {
+    margin-top: 0.4em;
 }
 
 main > ul {
@@ -182,10 +207,63 @@ article img {
     height: auto;
 }
 
+.rainbow {
+    color: #b33b55;
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+    .rainbow {
+        background: linear-gradient(90deg, #b42318, #925600, #587000, #087f70, #245ac4, #843bb5, #b42318);
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: rainbow-shift 4s linear infinite;
+    }
+}
+
+@keyframes rainbow-shift {
+    to { background-position: 200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rainbow {
+        animation: none;
+    }
+}
+
 @media (max-width: 600px) {
     main {
         margin: 2rem 1rem;
         padding: 0;
         font-size: 1.25rem;
     }
+}
+
+.prices {
+    display: table;
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+}
+
+.prices caption {
+    text-align: left;
+    font-style: italic;
+    padding-bottom: 0.4rem;
+}
+
+.prices td {
+    padding: 0.35rem 0;
+    border: 0;
+    border-bottom: 1px solid #d6d6d6;
+}
+
+.prices td:last-child {
+    text-align: right;
+    white-space: nowrap;
+    padding-left: 1rem;
+}
+
+.prices tr:first-child td {
+    border-top: 1px solid #222;
 }

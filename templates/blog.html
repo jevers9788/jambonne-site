@@ -3,7 +3,7 @@
 {% block background_preload %}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="/static/blog.css">{% endblock %}
 {% block content %}
-<p><a href="/">Home</a></p>
+<p><a class="banana-home" href="/" aria-label="Home" title="Home"><img src="/static/images/banana-home.png" width="72" height="72" alt=""></a></p>
 <ul>
     {% for post in posts %}
     <li><a href="/blog/{{ post.slug }}">{{ post.title }}</a></li>
