@@ -258,7 +258,17 @@ article img {
     border-bottom: 1px solid #d6d6d6;
 }
 
-.prices td:last-child {
+.prices th {
+    padding: 0.35rem 0;
+    border: 0;
+    border-top: 1px solid #222;
+    border-bottom: 1px solid #222;
+    font-weight: 400;
+    font-style: italic;
+    text-align: left;
+}
+
+.prices td:not(:first-child), .prices th:not(:first-child) {
     text-align: right;
     white-space: nowrap;
     padding-left: 1rem;
@@ -266,4 +276,8 @@ article img {
 
 .prices tr:first-child td {
     border-top: 1px solid #222;
+}
+
+.prices thead + tbody tr:first-child td {
+    border-top: 0;
 }
