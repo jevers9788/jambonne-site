@@ -38,7 +38,7 @@ static POSTS: &[Post] = &[
     Post {
         slug: "deep-infer",
         title: "Notes on DeepInfer",
-        markdown: include_str!("../blog/deep-infer.md")
+        markdown: include_str!("../blog/deep-infer.md"),
     },
 ];
 
@@ -264,10 +264,7 @@ mod tests {
                 "/blog/ai-compiler",
                 "<h1>How Low Can You Go: LLMs as Kernel Compilers</h1>",
             ),
-            (
-                "/blog/dumpster-cluster",
-                "<h1>The V100 Rides Again</h1>",
-            ),
+            ("/blog/dumpster-cluster", "<h1>The V100 Rides Again</h1>"),
         ] {
             let response = build_router()
                 .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
