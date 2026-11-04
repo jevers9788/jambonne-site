@@ -1,81 +1,61 @@
 # Dumpster Cluster
 
-# Notes
-## Watching the economics of compute
+There was once a time when I worked at a large, well-resourced, AI-forward tech company. We ran our infrastructure on GCP and had a team of Google employees at our beck and call whenever compute needs arose. A similar arrangement was in place with NVIDIA, which granted us access to new hardware as it rolled off the production line. Securing greater numbers of more powerful accelerators was typically a matter of sending a Slack message and having a few meetings.
 
-- discussions about the AI bubble have zeroed in on hyperscaler bonds
-- Claude and OpenAI usage have plateaued
-- model output may come to occupy (transitionally or permanently) a commodified state. Value is the buffer between token cost and value gained from those tokens
-- NVIDIA is moving fast, but not that fast (market math)
-- models move in the other direction (MoE, distillation, other methods of shrinking, performance work for training and inferecne, the entirety of r/locallama
-- many worry about the effects of a world "covered in data centers"
+More recently, building out a bootstrapped startup, I've learned what life is like among the compute have-nots. GPU procurement is difficult. Large numbers of accelerators are locked up in committed-use contracts with the big dog customers. If you can get capacity at all, the costs seem extra gruesome when it's me, instead of a corporate finance team, who gets the bill.
 
-## Personal View
+I'm not the only one feeling the pinch. Lots of small companies are realizing that balancing dollars spent on GPUs against value produced by tokens is an increasingly high priority, and getting creative with their solutions. There are neoclouds, but they have enough problems of their own that I doubt their viability as a place to lay the foundations of an organization's compute infrastructure. But where else is there to look?
 
-- I've worked at large corporations where we have comfortable access to the newest machines, reservations, committed use discounts, etc
-- I've also been in the position of having a skimpy budget and zero influence with compute providers
-- access to newer compute is both expensive and unreliable
-- Older machines are cheap and plentiful
+## GPUs Out to Pasture
 
-## Reasons not to do this
+All of these GPU chips are sitting in data centers somewhere. Those buildings can only fit so many racks. NVIDIA is putting out new hardware on an accelerated release cycle: after years of launching a new data-center architecture roughly every two years (Volta, Ampere, Hopper, Blackwell), in 2024 it picked up the pace and moved to a yearly cadence, with Blackwell Ultra following in 2025 and Rubin in 2026.
 
-- beowulf clusters have died down, networking and electricity
-- old compute uses more energy than new
-- secondary market is subject to supply and demand dynamics
+There's only so much room in the data centers, and cloud providers are going to make sure those new units have space. So eventually some of the older resident machines are going to be given the "out with the old, in with the new!" treatment.
 
-## A Close look at the Dumpster Cluster
+What happens to the old GPUs cast out of their former homes? In the near term, they end up on the secondary market. Cloud providers rarely sell old hardware themselves; they pass it to disposal firms that wipe, test, and resell it in bulk. For small buyers, much of it ends up on eBay, where you can buy a single card with buyer protection and compare prices across sellers.
 
-* Clouds phase out GPU cards in 3 year cycles
-* V100s are on the way out. There are tons of them, and they're cheap
-* GPU cards depreciate more quickly as they age
-* Operational cost is heavier than new hardware, but most problems are caused by PCIe and software. Only 8 failures over the year that they ran the cluster were because of GPUs
-* The performance shortcomings of the cluster are because of bandwidth; decode, which is memory-bound, doesn't do well against modern hardware, but decode-heavy workloads like coding are competitive with state of the art GPUs.
-TODO: what else is decode-heavy?
-* They did a lot of novel engineering to optimize inference on the dumpster cluster; most notably using the CPU instead of NCCL to transport outputs between layers.
-TODO: interested in how this works
-* Things start not to look so impressive on the benchmarks for the 70B model; this is where the bandwidth shortcomings become evident
-* Running the dumpster cluster isn't energy efficient. V100 chips are smaller, with fewer transistors, so they have to do more work, and consequentially produce more heat.  the paper's authors propose offsetting emissions by running dumpster clusters in settings where renewable energy is available. Sadly for us, such settings do not include the US. The clusters would need to be somewhere far away, where wind power is more plentiful, which would mean a cripplingly long network trip, likely demolishing TTFT and ITL metrics.
+On paper, hyperscalers depreciate their servers over five to six years, but GPUs usually get switched out after two to four years of use, since each new generation makes the old one uneconomical to keep running. When racks with legacy hardware are retired, the chips are often still functional.
 
-## Other Notes
-* I'm interested in how KV cache could figure in a dumpster cluster
-* I could imagine these being helpful for forward-pass models, BERT or JEV based applications that don't need a decode stage.
+## Introducing the Dumpster Cluster
 
+At first blush, an eBay GPU doesn't sound much better than a neocloud GPU (though they're often one and the same — you're just paying the neocloud for an eBay GPU). But what kind of potential remains in old hardware? A group of researchers set out to answer this question. They've released their findings in a [paper](https://arxiv.org/abs/2608.14614). It describes a GPU server rack in which every component was purchased on eBay, charmingly referred to as "the dumpster cluster." The authors compare a retiree cluster against the latest in the Hopper and Blackwell families, measuring success along the axes of total tokens generated, capital expenditure, and carbon emissions.
 
-# Draft 1
+<table class="prices">
+<caption>The 128× V100 dumpster cluster vs. an 8× B200 system, as reported in the paper</caption>
+<thead><tr><th></th><th>V100 pod</th><th>8× B200</th></tr></thead>
+<tr><td>Hardware cost</td><td><span class="rainbow">~$22K</span></td><td>~$600K</td></tr>
+<tr><td>LLaMA-8B prefill</td><td><span class="rainbow">223,936 tok/s</span></td><td>62,651 tok/s</td></tr>
+<tr><td>LLaMA-8B decode</td><td><span class="rainbow">8,128 tok/s</span></td><td>26,037 tok/s</td></tr>
+<tr><td>LLaMA-70B prefill</td><td><span class="rainbow">1,512 tok/s</span></td><td>37,045 tok/s</td></tr>
+<tr><td>LLaMA-70B decode</td><td><span class="rainbow">2,536 tok/s</span></td><td>24,695 tok/s</td></tr>
+</table>
 
-## Intro/Old Hardware
-GPUs sit in racks, which are installed in warehouses somewhere. Those warehouses can only fit so many racks. NVIDIA is putting out new hardware on an accelerated release cycle, and when those new machines come out, cloud providers are going to want them in those warehouses. Eventually, some of the older residents of those warehouses are going to be moved out. Where do they go? What do we do with them? When racks with legacy hardware are retired, the chips are often still functional and, for some purposes, useful, so they're sold on the secondary market.
-TODO: how do they go from a GCP warehouse to eBay?
+There are some actual upsides to the approach. The whole 128-GPU pod cost about $22K (as of March 2026), vs. roughly $600K for an 8× B200 system. They got the V100 cards for $60 each. Reliability was surprisingly good: over a year of operation, the authors logged 58 incidents, only 8 of them hardware failures (and just one of those a GPU); most of the rest were recoverable PCIe and software resets.
 
-## The troubles of compute
-Expensive, locked up, weapon in arms race
+Supply is plentiful for now, though a run through eBay suggests that $60 V100s are harder to come by in October 2026. On small models, the old hardware holds its own: for LLaMA-8B doing prefill, the paper reports the V100 pod beating the B200 system. By the measure of embodied carbon (the emissions already spent manufacturing a chip), keeping these cards running is a better use of them than sending them to a landfill. The authors also did a lot of engineering to get there, most notably a custom Rust serving engine that splits the model pipeline-parallel style and has the CPUs handle communication between stages asynchronously, so the GPUs never stop computing to launch NCCL transfers.
 
-## Dumpster Cluster
-I came across an inspired research paper that answers some of these questions -- inspiringly titled 'the dumpster cluster', every component in the rack was purchased on eBay.
-They set out to compare a retiree cluster against the latest in the Hopper and Blackwell family, with success evaluated on axes of total tokens generated, capital expenditure cost, and carbon emissions.
+## Dumpster Cluster, with Emphasis on the "Dumpster"
 
-## Obstacles
-- as is becoming increasingly clear even in new hardware, bandwidth tends to be the problem in ML workloads. in the dumpster cluster benchmarks, the disparity is more evident for prefill than decode; a performance gap opens.
-- recycling hardware isn't an environmental panacea; V100s are smaller chips with less dense transistors, so they have to work harder to produce the same amount of compute as the same number of transistors on newer chip designs, consequently, they generate more heat, and more carbon.
-- cost effectiveness is totally dependent on grid pricing and energy mix
-TODO: why does energy mix matter for cost?
+Obstacles emerge, however, when a bigger model is put into play. As is becoming clear even on new hardware, bandwidth tends to be the bottleneck in ML workloads, and the V100 doesn't have much of it: 900 GB/s of memory bandwidth against an H100's 3,350 GB/s, and 300 GB/s NVLink against 900 GB/s.
 
-## Upsides
+The pipeline parallelism required for splitting up the model means a lot of sluggish trips across the wire. On 70B, the V100 pod trails the 8× B200 system by roughly 24× on prefill and 10× on decode.
 
-- capital expenditure is much, much more manageable than new stuff (22k vs 800k)
-- reliability is surprisingly good
-- supply is plentiful (for now)
-- by the environmental of 'embodied carbon', this is a good use of these, better than them going in a landfill?
+Recycling hardware isn't an environmental panacea either. The V100 is built on an older 12 nm process, with far less densely packed transistors than the 4 nm H100, so it spends more energy on every token.
 
-## Future Investigations and Questions
-- I'm fascinated by the relationship between software and hardware. Its only a rarified part of the engineering world that has to think about the substrate, but there are increasing incentives to learn about this -- beyond just the pleasure of understanding how your magical AI application is working from top to bottom. At the frontier, scale may be indispensable, but left behind are many useful things. What can we do with them? 
-TODO: historical parallels 
+On grid-average electricity, the authors estimate about 4× the carbon per token of new hardware for 8B models and over 40× for 70B, far more than the embodied carbon saved by reusing the chips. That totally obliterates any notion I had that this was a more environmentally friendly approach.
 
-there are no doubt many applications where this kind of stack could be instrumental.
-* i'm thinking of forward pass models that don't have a decode step and are less dependent on bandwidth for performance
-* hardware constrains are often where we see the most exciting innovations in software. This paper has a few of its own; a custom Rust server, using CPUs instead of NCCL to transport the outputs between pipeline-parallel-split layers,
-* what else could be done here? Optimizing LLM inference is proving to be a process that spans all seven leayrs of the application stack. What kinds of benefits could LLM workload routers like llm-d bring? KV caching wasn't mentioned here at all, and with some of the multi-memory tier things like Mooncake, free space in memory outside of VRAM could be useful. Speculative decoding too. What about the whole host of mega optimizations just released in the DeepSeek inference kit? 
+Finally, cost-effectiveness depends entirely on grid pricing and energy mix. With cheap Chinese grid power (also mostly coal-produced and environmentally hostile), the V100 pod is up to 6× more cost-effective than H100s for 8B models, but for 70B that advantage goes away, and the V100s reach only about two-thirds of an H100's cost efficiency over three years.
 
+Strictly speaking, the energy mix matters a lot for carbon, while the price of electricity sets the cost. The two travel together, though, because the mix of sources (coal, gas, hydro, solar) largely determines what power costs in a region.
 
+The paper's scenarios show the tradeoff: China has the cheapest power (about $0.056/kWh) but the dirtiest (584 gCO2/kWh), while Brazil's is far cleaner (97 gCO2/kWh) but more than twice the price ($0.125/kWh). An old cluster runs crazy hot and looks best on cost exactly where electricity is dirtiest, so if you care at all about the environmental impact of AI (I think you should!), this is an approach to consider carefully.
 
+## Whither the Dumpster Cluster?
 
+In one sense, the outlook for small-scale, budget inference enthusiasts isn't optimistic. You can run a decently powerful model on legacy hardware, but the price you pay for that low-capital entry point, privacy, and autonomy is a white-hot carbon-emissions machine that will (a) need a lot of maintenance and (b) need to be replaced and retooled frequently.
+
+_But_ viewed in a more forward-looking sense, a cottage industry of small-scale inference servers could be a good thing. The assembly, engineering, and maintenance experience gained from putting together local or small-scale inference services is valuable process knowledge.
+
+There's also the hope that ingenuity in software design can enhance these systems' capabilities. One thing to note here is that KV cache designs weren't investigated at all in the paper (expect more on this point in future writing). What about speculative decoding? Think of the whole host of careful, model-hardware-specific optimizations in the [DeepInfer kit](/blog/deep-infer).
+
+Finally, the shortcomings of dumpster hardware might be smoothed over by designing the cluster with certain workloads in mind. Splitting prefill and decode into two separate clusters is increasingly common, and similar innovations in the design of a future dumpster cluster could take a similar workload-specific approach. I'm also thinking of the utility for search architectures or models like Jev that skip token-by-token decoding and produce their whole output in a single query. Depending on how things shift in green energy production, dumpster cluster setups could become attractive.

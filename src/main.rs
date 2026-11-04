@@ -32,7 +32,7 @@ static POSTS: &[Post] = &[
     },
     Post {
         slug: "dumpster-cluster",
-        title: "Out But Not Down: the V100 Lives Again",
+        title: "The V100 Rides Again",
         markdown: include_str!("../blog/dumpster-cluster.md"),
     },
     Post {
