@@ -30,20 +30,36 @@ main::before {
     gap: 5rem;
 }
 
+.post-layout aside {
+    position: sticky;
+    top: 2rem;
+    align-self: start;
+}
+
 aside {
     font-size: 1.15rem;
-    border-top: 5px solid #142e60;
-    padding-top: 1.25rem;
+}
+
+aside .banana-home {
+    margin-bottom: 1.25rem;
 }
 
 aside h2 {
     font-size: 1.25rem;
     font-style: normal;
+    font-weight: 700;
     margin: 0 0 1rem;
+}
+
+.all-posts {
+    display: block;
+    border-top: 1px solid #a8b1be;
+    padding-top: 1rem;
 }
 
 aside .post-links {
     padding: 0;
+    margin-bottom: 0;
     list-style: none;
 }
 
@@ -69,16 +85,6 @@ aside .post-links {
     display: block;
 }
 
-aside .banana-home {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    border-top: 1px solid #a8b1be;
-    margin-top: 2rem;
-    padding-top: 2rem;
-    width: 100%;
-}
 
 @media (max-width: 900px) {
     main {
@@ -88,6 +94,10 @@ aside .banana-home {
     .post-layout {
         grid-template-columns: minmax(0, 1fr);
         gap: 3rem;
+    }
+
+    .post-layout aside {
+        position: static;
     }
 
     aside {

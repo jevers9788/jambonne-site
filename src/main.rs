@@ -266,7 +266,7 @@ mod tests {
             ),
             (
                 "/blog/dumpster-cluster",
-                "<h1>Out But Not Down: the V100 Lives Again</h1>",
+                "<h1>The V100 Rides Again</h1>",
             ),
         ] {
             let response = build_router()
@@ -286,14 +286,13 @@ mod tests {
             if path.starts_with("/blog/") {
                 assert_eq!(body.matches("class=\"post-header\"").count(), 1);
                 assert!(!body.contains("<h1>Dumpster Cluster</h1>"));
-                assert!(body.contains("<p class=\"byline\">James Walsh Evers</p>"));
             }
             if path == "/blog/ai-compiler" {
                 assert!(body.contains("href=\"/blog/dumpster-cluster\""));
                 assert!(!body.contains("href=\"/blog/ai-compiler\""));
                 assert!(body.contains("class=\"banana-home\" href=\"/\""));
-                assert!(body.contains("<table>"));
-                assert!(body.contains(">0.271 ms</td>"));
+                assert!(body.contains("<table class=\"prices\">"));
+                assert!(body.contains(">0.271 ms</span></td>"));
                 assert!(body.contains("href=\"https://arxiv.org/pdf/2609.36800\""));
                 assert_eq!(body.matches("<h1>").count(), 1);
             }

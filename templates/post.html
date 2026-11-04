@@ -11,7 +11,10 @@
     {{ html|safe }}
 </article>
 <aside aria-label="More writing">
-    <h2>Other articles</h2>
+    <a class="banana-home" href="/" aria-label="Home" title="Home">
+        <img src="/static/images/banana-home.png" width="72" height="72" alt="">
+    </a>
+    <h2>Other Posts</h2>
     <ul class="post-links">
     {% for other in posts %}
         {% if other.slug != slug %}
@@ -20,9 +23,6 @@
     {% endfor %}
     </ul>
     <a class="all-posts" href="/blog">All posts</a>
-    <a class="banana-home" href="/" aria-label="Home" title="Home">
-        <img src="/static/images/banana-home.png" width="72" height="72" alt="">
-    </a>
 </aside>
 </div>
 {% endblock %}
